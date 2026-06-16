@@ -1422,6 +1422,7 @@ let isShuffle = false;
 let repeatMode = 1;    // 0=off 1=all 2=one
 let isCrossfade = false;
 let isAdvancing = false;
+let _userPaused = false;
 let playSpeed = 1;
 let eqEnabled = true;
 let eqVals = [0,0,0,0,0,0,0,0,0,0];
@@ -1430,10 +1431,13 @@ let sleepTimer = null, sleepEnd = null;
 let visInterval = null;
 
 // ─── AUDIO ENGINE ──────────────────────────────────────────
-const audio = new Audio();
+const audio = document.createElement('video');
 audio.preload = 'auto';
 audio.setAttribute('playsinline','');
 audio.setAttribute('x-webkit-airplay','allow');
+audio.muted = false;
+audio.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;';
+document.body.appendChild(audio);
 let audioCtx, analyserNode, gainNode, eqFilters = [], srcNode;
 let xfadeTimeout = null;
 const XFADE = 3;
@@ -1650,8 +1654,10 @@ function togglePlay() {
   if(now-lastPlayTap<300) return; // debounce 300ms
   lastPlayTap=now;
   if (isPlaying) {
+    _userPaused = true;
     audio.pause();
   } else {
+    _userPaused = false;
     if (audioCtx?.state==='suspended') audioCtx.resume();
     unlockSilent();
     audio.play().catch(()=>{});
@@ -1763,8 +1769,27 @@ audio.addEventListener('timeupdate', () => {
 
 });
 
-audio.addEventListener('play', () => { isPlaying=true; updatePlayIcons(); updateArtState(); if('mediaSession' in navigator) navigator.mediaSession.playbackState='playing'; });
+audio.addEventListener('play', () => {
+  // If user had paused, iOS may auto-resume — block it immediately
+  if (_userPaused) { audio.pause(); return; }
+  isPlaying=true;
+  updatePlayIcons();
+  updateArtState();
+  if('mediaSession' in navigator) navigator.mediaSession.playbackState='playing';
+  unlockSilent();
+  // Request PiP so audio survives iOS background (same as YouTube)
+  requestBackgroundPiP();
+});
 audio.addEventListener('pause', () => { isPlaying=false; updatePlayIcons(); updateArtState(); if('mediaSession' in navigator) navigator.mediaSession.playbackState='paused'; });
+
+// Request PiP for background audio on iOS — same trick as YouTube
+async function requestBackgroundPiP() {
+  if (!('pictureInPictureEnabled' in document)) return;
+  try {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture();
+    await audio.requestPictureInPicture();
+  } catch(e) { /* PiP not available */ }
+}
 audio.addEventListener('error', () => { toast('⚠️ Lecture impossible'); setTimeout(nextTrack,400); });
 audio.addEventListener('waiting', () => updatePlayIcons());
 
@@ -2824,11 +2849,31 @@ function openMobileMore() { $('mobile-more-sheet').classList.add('open'); }
 function closeMobileMore() { $('mobile-more-sheet').classList.remove('open'); }
 
 // ─── iOS BACKGROUND AUDIO ───────────────────────────────
+// Save position when going to background
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && isPlaying && audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
+  if (document.hidden) {
+    // App going to background — save position
+    if (isPlaying) saveSession();
+  } else {
+    // App returning to foreground
+    // If user had paused, iOS may auto-resume audio — force pause it
+    if (_userPaused && !audio.paused) {
+      audio.pause();
+      isPlaying = false;
+      updatePlayIcons();
+    }
+    // If music was playing and AudioContext was suspended, resume it
+    else if (isPlaying && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
   }
 });
+// Re-request PiP when returning to foreground
+if('pictureInPictureEnabled' in document) {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && isPlaying) requestBackgroundPiP();
+  });
+}
 
 // ─── iOS AUDIO SESSION (background playback) ─────────────
 // Safari 17+ AudioSession API — tells iOS this is music playback
@@ -2854,7 +2899,7 @@ function unlockSilent() {
   document.addEventListener(evt, unlockSilent, {once:true, passive:true});
 });
 // When track plays, ensure silent element is playing too
-audio.addEventListener('play', ()=>{ unlockSilent(); });
+// unlockSilent is now called inside the main play handler (Change 3)
 // Don't stop silent on pause - it must keep playing for iOS background
 
 // ─── INIT ──────────────────────────────────────────────────
