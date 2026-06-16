@@ -42,66 +42,128 @@
   --slide: cubic-bezier(0.32,0.72,0,1);
   --c1: #fc3c44; --c2: #1a1a2e;
 }
-/* ── LIQUID GLASS iOS 26 ── */
+/* ------------------------------------------------------------
+   LIQUID GLASS iOS 26   verified from Apple-style CSS tutorials
+   Sources: therobbiedavis.com, hype4.academy, dev.to/fabiosleal
+   ------------------------------------------------------------ */
+
 .liquid-glass {
-  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: var(--r-xl);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
-}
-.liquid-glass-sm {
-  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--r-lg);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
-}
-.liquid-glass-pill {
-  background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 999px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+  border-radius: var(--r-xl);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.35),
+    inset 0 -1px 0 rgba(255,255,255,0.08),
+    inset 0 0 20px 10px rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.6) 50%, transparent 95%);
+  z-index: 1;
+}
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 1px; height: 100%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.5), transparent 50%, rgba(255,255,255,0.15));
+  z-index: 1;
 }
 
-/* ── ANIMATED LIQUID GLASS iOS 26 ── */
+.liquid-glass-sm {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--r-lg);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 0 12px 6px rgba(255,255,255,0.03);
+}
+
+.liquid-glass-pill {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.07));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    inset 0 -1px 0 rgba(255,255,255,0.1),
+    inset 0 0 16px 8px rgba(255,255,255,0.05);
+}
+
 .liquid-glass-animated {
   position:relative;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
   border-radius: var(--r-xl);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.35),
+    inset 0 -1px 0 rgba(255,255,255,0.08),
+    inset 0 0 20px 10px rgba(255,255,255,0.04);
   overflow:hidden;
 }
 .liquid-glass-animated::before {
   content:'';
-  position:absolute; inset:-50%;
-  background: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.08) 0%, transparent 50%),
-              radial-gradient(circle at 70% 60%, rgba(255,255,255,0.06) 0%, transparent 40%),
-              radial-gradient(circle at 50% 80%, rgba(255,255,255,0.04) 0%, transparent 60%);
-  animation: glassFloat 8s ease-in-out infinite;
-  pointer-events:none;
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 120% 80% at 25% 20%, rgba(255,255,255,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 120% at 75% 80%, rgba(255,255,255,0.08) 0%, transparent 50%);
   z-index:0;
+  animation:glassFloat 6s ease-in-out infinite alternate;
+  pointer-events:none;
 }
 .liquid-glass-animated::after {
   content:'';
-  position:absolute; top:-2px; left:20%; right:20%; height:1px;
-  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  pointer-events:none;
+  position:absolute;
+  top:0; left:0; right:0;
+  height:1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.5) 30%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.5) 70%, transparent 95%);
   z-index:1;
+  pointer-events:none;
 }
 .liquid-glass-animated > * { position:relative; z-index:2; }
 @keyframes glassFloat {
-  0%,100% { transform:translate(0,0) rotate(0deg); }
-  25% { transform:translate(2%,-3%) rotate(1deg); }
-  50% { transform:translate(-1%,2%) rotate(-0.5deg); }
-  75% { transform:translate(3%,1%) rotate(0.5deg); }
+  0% { transform: translate(0,0) rotate(0deg); opacity:0.8; }
+  50% { transform: translate(2%,-1%) rotate(0.5deg); opacity:1; }
+  100% { transform: translate(-1%,2%) rotate(-0.3deg); opacity:0.9; }
+}
+
+/* -- GLASS NAV BAR (bottom mobile nav) -- */
+#mobile-nav.glass-nav {
+  background: rgba(10,10,10,0.35);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-top: 0.5px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* -- GLASS PLAYER (mini player bar) -- */
+.glass-player {
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06)) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.3),
+    inset 0 0 16px 8px rgba(255,255,255,0.04) !important;
 }
 
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
@@ -128,7 +190,7 @@ body {
   position:absolute;
   border-radius:50%;
   filter:blur(80px);
-  opacity:0;
+  opacity:0.18;
   transition:opacity 2s ease, width 2s ease, height 2s ease, transform 2s ease, background 2s ease;
   will-change:transform;
 }
@@ -439,7 +501,7 @@ body {
 #mobile-nav {
   display:none; position:fixed;
   bottom:0; left:0; right:0; z-index:90;
-  background:rgba(10,10,10,0.92);
+  background:rgba(10,10,10,0.35);
   backdrop-filter:blur(50px) saturate(180%);
   -webkit-backdrop-filter:blur(50px) saturate(180%);
   border-top:0.5px solid var(--glass-border);
@@ -1047,7 +1109,7 @@ body {
 </head>
 <body>
 <!-- Dynamic BG -->
-<div id="bg"><div class="bg-blob" id="blob1"></div><div class="bg-blob" id="blob2"></div></div>
+<div id="bg"><div class="bg-blob active" id="blob1" style="background:#fc3c44"></div><div class="bg-blob active" id="blob2" style="background:#1a1a2e"></div></div>
 
 <!-- Loading screen -->
 <div id="splash" style="position:fixed;inset:0;z-index:9999;background:#090909;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.5s">
@@ -1339,7 +1401,7 @@ body {
 
   <!-- MINI PLAYER -->
   <div id="player-bar">
-    <div id="player-pill" onclick="openFullPlayer()">
+    <div id="player-pill" class="glass-player" onclick="openFullPlayer()">
       <div id="pp-progress"><div id="pp-fill"></div></div>
       <div id="pp-art">
         <div id="pp-art-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
@@ -1358,7 +1420,7 @@ body {
   </div>
 
   <!-- MOBILE NAV -->
-  <nav id="mobile-nav">
+  <nav id="mobile-nav" class="glass-nav">
     <div class="mn-item active" data-nav="home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span>Accueil</span></div>
     <div class="mn-item" data-nav="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Recherche</span></div>
     <div class="mn-item" data-nav="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Titres</span></div>
