@@ -1552,10 +1552,7 @@ async function playById(trackId, resetQ=true) {
   // Get audio URL
   let audioURL = blobURLs[trackId]?.audioURL;
   if (!audioURL) {
-    // Load blob from DB
-    const blobData = await dbGet(STORE_TRACKS+'_blobs', trackId).catch(()=>null);
-    // The blobs are in the main tracks store as separate fields
-    const stored = await dbGet(STORE_TRACKS, trackId);
+    const stored = await dbGet(STORE_TRACKS, trackId).catch(()=>null);
     if (stored?.audioBlob) {
       if (!blobURLs[trackId]) blobURLs[trackId] = {};
       blobURLs[trackId].audioURL = URL.createObjectURL(stored.audioBlob);
@@ -1567,21 +1564,61 @@ async function playById(trackId, resetQ=true) {
     }
   }
 
-  if (!audioURL) { toast('⚠️ Fichier indisponible'); return; }
+  if (!audioURL) {
+    console.warn('No audioURL for', trackId);
+    // Skip to next track instead of stopping
+    setTimeout(()=>nextTrack(), 200);
+    return;
+  }
 
   initAudio();
-  if (audioCtx?.state === 'suspended') await audioCtx.resume();
+
+  // Force resume AudioContext (critical on iOS)
+  if (audioCtx) {
+    try {
+      if (audioCtx.state !== 'running') await audioCtx.resume();
+    } catch(e) { console.warn('Ctx resume fail:',e); }
+  }
 
   if (resetQ) buildQueue(trackId);
   currentIdx = idx;
 
-  // Clear xfade
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
 
   audio.src = audioURL;
+  audio.load(); // Force reload (fixes same-URL restart on iOS)
   audio.playbackRate = playSpeed;
-  try { await audio.play(); isPlaying=true; }
-  catch(e) { console.warn('play fail',e); isPlaying=false; }
+
+  // Try to play with retry
+  let played = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await audio.play();
+      isPlaying = true;
+      played = true;
+      break;
+    } catch(e) {
+      console.warn('play attempt ' + (attempt+1) + ' failed:', e.message);
+      // On iOS, try suspending + resuming context
+      if (audioCtx && attempt < 2) {
+        try {
+          await audioCtx.suspend();
+          await new Promise(r => setTimeout(r, 100));
+          await audioCtx.resume();
+          await new Promise(r => setTimeout(r, 100));
+        } catch(e2) {}
+      }
+    }
+  }
+
+  if (!played) {
+    console.warn('All play attempts failed for', trackId, '- skipping');
+    isPlaying = false;
+    updatePlayIcons();
+    // Auto-skip to next track after short delay
+    setTimeout(()=>nextTrack(), 500);
+    return;
+  }
 
   updatePlayerUI();
   updateTrackHighlights();
@@ -1623,8 +1660,9 @@ function nextTrack() {
   if (isAdvancing) return;
   isAdvancing=true;
   setTimeout(()=>{isAdvancing=false;},500);
-  if (repeatMode===2) { audio.currentTime=0; audio.play(); return; }
+  if (repeatMode===2) { audio.currentTime=0; audio.play().catch(()=>{}); return; }
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
+  if (queue.length===0) { isAdvancing=false; return; }
   if (queueIdx < queue.length-1) {
     queueIdx++;
     const trackId = queue[queueIdx];
@@ -1632,6 +1670,8 @@ function nextTrack() {
     playById(trackId, false);
   } else if (repeatMode===1) {
     queueIdx=0;
+    audio.pause();
+    audio.currentTime=0;
     playById(queue[0], false);
   } else {
     audio.pause(); isPlaying=false;
@@ -1701,7 +1741,9 @@ function openAirPlay() {
 
 // ─── AUDIO EVENTS ──────────────────────────────────────────
 audio.addEventListener('ended', () => {
-  nextTrack();
+  console.log('Audio ended, repeatMode=' + repeatMode + ' queueIdx=' + queueIdx + '/' + queue.length);
+  // Small delay to let any pending play() settle
+  setTimeout(()=>nextTrack(), 50);
 });
 
 audio.addEventListener('timeupdate', () => {
