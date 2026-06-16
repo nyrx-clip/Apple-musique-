@@ -1383,8 +1383,9 @@ let queueIdx = 0;
 let currentIdx = -1;   // index in library[]
 let isPlaying = false;
 let isShuffle = false;
-let repeatMode = 0;    // 0=off 1=all 2=one
+let repeatMode = 1;    // 0=off 1=all 2=one
 let isCrossfade = false;
+let isAdvancing = false;
 let playSpeed = 1;
 let eqEnabled = true;
 let eqVals = [0,0,0,0,0,0,0,0,0,0];
@@ -1576,6 +1577,9 @@ function togglePlay() {
 }
 
 function nextTrack() {
+  if (isAdvancing) return;
+  isAdvancing=true;
+  setTimeout(()=>{isAdvancing=false;},500);
   if (repeatMode===2) { audio.currentTime=0; audio.play(); return; }
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
   if (queueIdx < queue.length-1) {
@@ -1593,6 +1597,9 @@ function nextTrack() {
 }
 
 function prevTrack() {
+  if (isAdvancing) return;
+  isAdvancing=true;
+  setTimeout(()=>{isAdvancing=false;},500);
   if (audio.currentTime>3) { audio.currentTime=0; return; }
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
   if (queueIdx>0) {
@@ -1632,9 +1639,7 @@ function cycleRepeat() {
 }
 
 function toggleCrossfade() {
-  isCrossfade = !isCrossfade;
-  $('fp-xfade').classList.toggle('on', isCrossfade);
-  toast(isCrossfade ? '✨ CrossFade 3s activé' : 'CrossFade désactivé');
+  toast('CrossFade indisponible');
 }
 
 function cycleSpeed() {
@@ -1653,7 +1658,6 @@ function openAirPlay() {
 
 // ─── AUDIO EVENTS ──────────────────────────────────────────
 audio.addEventListener('ended', () => {
-  if (isCrossfade) return;
   nextTrack();
 });
 
@@ -1667,24 +1671,6 @@ audio.addEventListener('timeupdate', () => {
   $('fp-cur').textContent = fmt(audio.currentTime);
   $('fp-dur').textContent = fmt(audio.duration);
 
-  // Crossfade
-  if (isCrossfade && audio.duration-audio.currentTime<=XFADE && !xfadeTimeout) {
-    xfadeTimeout = setTimeout(() => {
-      xfadeTimeout=null;
-      if (gainNode) {
-        gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime+XFADE);
-      }
-      nextTrack();
-      setTimeout(() => {
-        if (gainNode) {
-          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-          gainNode.gain.linearRampToValueAtTime(parseFloat($('fp-vol').value), audioCtx.currentTime+XFADE);
-        }
-      }, 100);
-    }, Math.max(0,(audio.duration-audio.currentTime-XFADE)*1000));
-  }
-  if (!isCrossfade && xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
 });
 
 audio.addEventListener('play', () => { isPlaying=true; updatePlayIcons(); updateArtState(); });
@@ -1692,9 +1678,18 @@ audio.addEventListener('pause', () => { isPlaying=false; updatePlayIcons(); upda
 audio.addEventListener('error', () => { toast('⚠️ Lecture impossible'); setTimeout(nextTrack,400); });
 audio.addEventListener('waiting', () => updatePlayIcons());
 
-$('fp-seek').addEventListener('input', e => {
+let seekWasPlaying = false;
+const seekEl = $('fp-seek');
+seekEl.addEventListener('pointerdown', () => {
+  seekWasPlaying = isPlaying;
+  if (isPlaying) audio.pause();
+});
+seekEl.addEventListener('input', e => {
   if (audio.duration) audio.currentTime = (e.target.value/100)*audio.duration;
   e.target.style.setProperty('--sp', e.target.value+'%');
+});
+seekEl.addEventListener('pointerup', () => {
+  if (seekWasPlaying) { isPlaying = true; audio.play().catch(()=>{}); }
 });
 $('fp-vol').addEventListener('input', e => {
   const v = parseFloat(e.target.value);
@@ -2414,11 +2409,16 @@ function openAddToPlaylistModal(trackId) {
 
 // ─── CONTEXT MENU ──────────────────────────────────────────
 let ctxClose=null;
+let _ctxActions={};
+let _ctxActionId=0;
 function ctx(event, items) {
   const menu=$('ctx');
+  _ctxActions={}; _ctxActionId=0;
   menu.innerHTML=items.map(item=>{
     if(item==='sep') return '<div class="ctx-sep"></div>';
-    return `<div class="ctx-item${item.cls?' '+item.cls:''}" onclick="closeCtx();(${item.action.toString()})()">
+    const id=++_ctxActionId;
+    _ctxActions[id]=item.action;
+    return `<div class="ctx-item${item.cls?' '+item.cls:''}" onclick="closeCtx();_ctxCtxAct(${id})">
       <span>${item.label}</span>
     </div>`;
   }).join('');
@@ -2434,6 +2434,7 @@ function ctx(event, items) {
   ctxClose=()=>closeCtx();
   setTimeout(()=>document.addEventListener('click',ctxClose,{once:true}),80);
 }
+window._ctxCtxAct=function(id){if(_ctxActions[id])_ctxActions[id]();};
 function closeCtx(){ $('ctx').style.display='none'; }
 
 function openTrackCtx(trackId, event) {
@@ -2658,7 +2659,7 @@ async function loadPrefs() {
   const p=await dbGet(STORE_META,'prefs').catch(()=>null);
   if(!p) return;
   isShuffle=p.isShuffle||false;
-  repeatMode=p.repeatMode||0;
+  repeatMode=1;
   eqEnabled=p.eqEnabled!==undefined?p.eqEnabled:true;
   eqVals=p.eqVals||[0,0,0,0,0,0,0,0,0,0];
   sortMode=p.sortMode||'dateAdded';
