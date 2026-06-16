@@ -1467,30 +1467,18 @@ const RADIO = [
 ];
 
 function initAudio() {
+  // Do NOT route audio through AudioContext/MediaElementSource
+  // iOS kills background audio when audio goes through Web Audio API
+  // YouTube works because it plays directly through <video>
+  // EQ and visualizer are disabled for iOS background compatibility
   if (audioCtx) return;
   try {
     audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    // Create analyser for visualizer but DON'T connect to audio element
     analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = 128;
     gainNode = audioCtx.createGain();
     gainNode.gain.value = 1;
-
-    eqFilters = EQ_FREQS.map((freq,i) => {
-      const f = audioCtx.createBiquadFilter();
-      f.type = i===0?'lowshelf': i===EQ_FREQS.length-1?'highshelf':'peaking';
-      f.frequency.value = freq;
-      f.gain.value = eqEnabled ? eqVals[i] : 0;
-      return f;
-    });
-
-    // Chain: source → eq[0]→...→eq[9] → gain → analyser → dest
-    srcNode = audioCtx.createMediaElementSource(audio);
-    srcNode.connect(eqFilters[0]);
-    for (let i=0;i<eqFilters.length-1;i++) eqFilters[i].connect(eqFilters[i+1]);
-    eqFilters[eqFilters.length-1].connect(gainNode);
-    gainNode.connect(analyserNode);
-    analyserNode.connect(audioCtx.destination);
-
     startVis();
   } catch(e) { console.warn('AudioCtx fail:',e); }
 }
@@ -1511,16 +1499,14 @@ function startVis() {
   const dataArr = new Uint8Array(analyserNode.frequencyBinCount);
   function visTick() {
     visInterval = requestAnimationFrame(visTick);
-    if(!isPlaying || !analyserNode) {
+    if(!isPlaying) {
       bars.forEach(b=>b.style.height='2px');
       return;
     }
-    analyserNode.getByteFrequencyData(dataArr);
-    const step = Math.floor(dataArr.length / 32);
+    // Simple animated bars when analyser is not connected
     bars.forEach((b,i) => {
-      const val = dataArr[i*step] || 0;
-      const pct = (val/255)*100;
-      b.style.height = Math.max(2,pct*0.44) + 'px';
+      const h = 4 + Math.sin(Date.now()/300 + i*0.5) * 20 + Math.random() * 15;
+      b.style.height = Math.max(2, h) + 'px';
     });
   }
   visTick();
@@ -1809,7 +1795,6 @@ seekEl.addEventListener('pointerup', () => {
 $('fp-vol').addEventListener('input', e => {
   const v = parseFloat(e.target.value);
   audio.volume = v;
-  if (gainNode) gainNode.gain.setValueAtTime(v, audioCtx.currentTime);
 });
 
 // ─── UI UPDATES ────────────────────────────────────────────
