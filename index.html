@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Coco Music">
 <meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkNvY28gTXVzaWMiLAogICJzaG9ydF9uYW1lIjogIkNvY28gTXVzaWMiLAogICJkZXNjcmlwdGlvbiI6ICJMZWN0ZXVyIG11c2ljYWwgcGVyc29ubmVsIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzA5MDkwOSIsCiAgInRoZW1lX2NvbG9yIjogIiMwOTA5MDkiLAogICJpY29ucyI6IFsKICAgIHsic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnPjxyZWN0IHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJyByeD0nMjAnIGZpbGw9JyUyM2ZjM2M0NCcvPjx0ZXh0IHg9JzUwJyB5PSc2OCcgZm9udC1zaXplPSc1MCcgdGV4dC1hbmNob3I9J21pZGRsZScgZmlsbD0nd2hpdGUnPuKZqjwvdGV4dD48L3N2Zz4iLCAic2l6ZXMiOiAiMTkyeDE5MiIsICJ0eXBlIjogImltYWdlL3N2Zyt4bWwifSwKICAgIHsic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnPjxyZWN0IHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJyByeD0nMjAnIGZpbGw9JyUyM2ZjM2M0NCcvPjx0ZXh0IHg9JzUwJyB5PSc2OCcgZm9udC1zaXplPSc1MCcgdGV4dC1hbmNob3I9J21pZGRsZScgZmlsbD0nd2hpdGUnPuKZqjwvdGV4dD48L3N2Zz4iLCAic2l6ZXMiOiAiNTEyeDUxMiIsICJ0eXBlIjogImltYWdlL3N2Zyt4bWwifQogIF0KfQ==">
 <title>Coco Music</title>
 <style>
 /* ════════════════════════════════════════════════════════════
@@ -1504,8 +1505,12 @@ function startVis() {
     bars.push(b);
   }
   const dataArr = new Uint8Array(analyserNode.frequencyBinCount);
-  function tick() {
-    visInterval = requestAnimationFrame(tick);
+  function visTick() {
+    visInterval = requestAnimationFrame(visTick);
+    if(!isPlaying || !analyserNode) {
+      bars.forEach(b=>b.style.height='2px');
+      return;
+    }
     analyserNode.getByteFrequencyData(dataArr);
     const step = Math.floor(dataArr.length / 32);
     bars.forEach((b,i) => {
@@ -1514,7 +1519,7 @@ function startVis() {
       b.style.height = Math.max(2,pct*0.44) + 'px';
     });
   }
-  tick();
+  visTick();
 }
 
 // ─── PLAYBACK ──────────────────────────────────────────────
@@ -1599,18 +1604,19 @@ async function playFromQueue(qPos) {
   await playById(trackId, false);
 }
 
+let lastPlayTap=0;
 function togglePlay() {
   if (library.length===0) return;
   if (!audio.src) { playByIdx(0); return; }
+  const now=Date.now();
+  if(now-lastPlayTap<300) return; // debounce 300ms
+  lastPlayTap=now;
   if (isPlaying) {
-    audio.pause(); isPlaying=false;
+    audio.pause();
   } else {
     if (audioCtx?.state==='suspended') audioCtx.resume();
     audio.play().catch(()=>{});
-    isPlaying=true;
   }
-  updatePlayIcons();
-  updateArtState();
 }
 
 function nextTrack() {
@@ -2776,6 +2782,47 @@ document.addEventListener('visibilitychange', () => {
     audioCtx.resume().catch(() => {});
   }
 });
+
+// ─── iOS AUDIO SESSION (background playback) ─────────────
+// Safari 17+ AudioSession API — tells iOS this is music playback
+try {
+  if ('AudioSession' in window) {
+    const session = new AudioSession();
+    session.type = 'playback'; // keeps audio alive in background
+  } else if ('audioSession' in navigator) {
+    navigator.audioSession.type = 'playback';
+  }
+} catch(e) {}
+
+// Silent audio trick: keeps iOS audio session alive in background
+let silentAudio = null;
+function startSilentLoop() {
+  if(silentAudio) return;
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    // Fill with near-silence (very quiet noise to prevent iOS from killing the session)
+    for(let i=0; i<data.length; i++) data[i] = (Math.random()*2-1) * 0.001;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(ac.destination);
+    src.start();
+    silentAudio = {ac, src};
+  } catch(e) {}
+}
+function stopSilentLoop() {
+  if(silentAudio) {
+    try { silentAudio.src.stop(); silentAudio.ac.close(); } catch(e) {}
+    silentAudio = null;
+  }
+}
+
+// Start silent loop when playing, stop when paused
+audio.addEventListener('play', ()=>{ startSilentLoop(); });
+audio.addEventListener('pause', ()=>{ stopSilentLoop(); });
+audio.addEventListener('ended', ()=>{ stopSilentLoop(); });
 
 // ─── INIT ──────────────────────────────────────────────────
 async function init() {
