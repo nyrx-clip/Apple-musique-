@@ -44,12 +44,14 @@
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
 html { height:100%; overflow:hidden; }
 body {
-  height:100%; overflow:hidden;
+  height:100dvh; height:100vh; overflow:hidden;
   background:var(--bg); color:var(--text1);
   font-family:var(--font);
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
   overscroll-behavior:none;
+  touch-action:manipulation;
+  -webkit-text-size-adjust:100%;
 }
 ::selection { background:rgba(252,60,68,0.3); }
 
@@ -80,6 +82,9 @@ body {
   padding-top:var(--safe-t);
   padding-left:var(--safe-l);
   padding-right:var(--safe-r);
+  width:100%; height:100%;
+  max-width:100%; max-height:100%;
+  overflow:hidden;
 }
 #layout { display:flex; flex:1; overflow:hidden; min-height:0; }
 
@@ -933,6 +938,35 @@ body {
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:0; }
+
+/* ── MOBILE MORE SHEET ── */
+#mobile-more-sheet {
+  position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,0.5);
+  display:none; align-items:flex-end; justify-content:center;
+}
+#mobile-more-sheet.open { display:flex; }
+#mobile-more-content {
+  background:var(--bg); border-top:0.5px solid var(--glass-border);
+  border-radius:var(--r-xl) var(--r-xl) 0 0;
+  width:100%; max-width:500px;
+  padding:12px 0 calc(var(--safe-b) + 16px);
+  animation:slideUp 0.3s var(--slide);
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.mm-drag { width:36px; height:4px; border-radius:2px; background:var(--surface3); margin:0 auto 16px; }
+.mm-title { font-size:16px; font-weight:700; padding:0 20px 12px; }
+.mm-item {
+  display:flex; align-items:center; gap:14px;
+  padding:13px 20px; cursor:pointer; color:var(--text1);
+  transition:background 0.15s; font-size:15px;
+}
+.mm-item:active { background:var(--surface2); }
+.mm-item svg { width:22px; height:22px; color:var(--text2); flex-shrink:0; }
+.mm-item span { flex:1; }
+.mm-item.active { color:var(--accent); }
+.mm-sep { height:0.5px; background:var(--glass-border); margin:8px 20px; }
+
 </style>
 </head>
 <body>
@@ -1243,6 +1277,7 @@ body {
     <div class="mn-item" data-nav="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Titres</span></div>
     <div class="mn-item" data-nav="playlists"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span>Playlists</span></div>
     <div class="mn-item" data-nav="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Importer</span></div>
+    <div class="mn-item" id="mn-more" onclick="openMobileMore()"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg><span>Plus</span></div>
   </nav>
 </div>
 
@@ -1396,6 +1431,8 @@ let visInterval = null;
 // ─── AUDIO ENGINE ──────────────────────────────────────────
 const audio = new Audio();
 audio.preload = 'auto';
+audio.setAttribute('playsinline','');
+audio.setAttribute('x-webkit-airplay','allow');
 let audioCtx, analyserNode, gainNode, eqFilters = [], srcNode;
 let xfadeTimeout = null;
 const XFADE = 3;
@@ -1673,8 +1710,8 @@ audio.addEventListener('timeupdate', () => {
 
 });
 
-audio.addEventListener('play', () => { isPlaying=true; updatePlayIcons(); updateArtState(); });
-audio.addEventListener('pause', () => { isPlaying=false; updatePlayIcons(); updateArtState(); });
+audio.addEventListener('play', () => { isPlaying=true; updatePlayIcons(); updateArtState(); if('mediaSession' in navigator) navigator.mediaSession.playbackState='playing'; });
+audio.addEventListener('pause', () => { isPlaying=false; updatePlayIcons(); updateArtState(); if('mediaSession' in navigator) navigator.mediaSession.playbackState='paused'; });
 audio.addEventListener('error', () => { toast('⚠️ Lecture impossible'); setTimeout(nextTrack,400); });
 audio.addEventListener('waiting', () => updatePlayIcons());
 
@@ -1752,6 +1789,7 @@ function updatePlayerUI() {
     navigator.mediaSession.setActionHandler('seekto', d=>{if(d.seekTime)audio.currentTime=d.seekTime;});
     navigator.mediaSession.setActionHandler('seekbackward', d=>{audio.currentTime=Math.max(0,audio.currentTime-(d.seekOffset||10));});
     navigator.mediaSession.setActionHandler('seekforward', d=>{audio.currentTime=Math.min(audio.duration,audio.currentTime+(d.seekOffset||10));});
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
   }
 
   updatePlayIcons();
@@ -2727,6 +2765,18 @@ function checkInstallPrompt() {
   }
 }
 
+
+// ─── MOBILE MORE SHEET ──────────────────────────────────────
+function openMobileMore() { $('mobile-more-sheet').classList.add('open'); }
+function closeMobileMore() { $('mobile-more-sheet').classList.remove('open'); }
+
+// ─── iOS BACKGROUND AUDIO ───────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isPlaying && audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+});
+
 // ─── INIT ──────────────────────────────────────────────────
 async function init() {
   $('splash-msg').textContent = 'Ouverture de la base de données…';
@@ -2759,6 +2809,39 @@ async function init() {
 
 init();
 </script>
+<!-- MOBILE MORE SHEET -->
+<div id="mobile-more-sheet" onclick="if(event.target===this)closeMobileMore()">
+  <div id="mobile-more-content">
+    <div class="mm-drag"></div>
+    <div class="mm-title">Plus</div>
+    <div class="mm-item" onclick="closeMobileMore();nav('equalizer')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+      <span>Égaliseur</span>
+    </div>
+    <div class="mm-item" onclick="closeMobileMore();nav('radio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/><circle cx="12" cy="12" r="2"/></svg>
+      <span>Radio</span>
+    </div>
+    <div class="mm-item" onclick="closeMobileMore();nav('favorites')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      <span>Favoris</span>
+    </div>
+    <div class="mm-sep"></div>
+    <div class="mm-item" onclick="closeMobileMore();openSleepModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <span>Minuteur</span>
+    </div>
+    <div class="mm-item" onclick="closeMobileMore();openAirPlay()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h18a2 2 0 012 2v10a2 2 0 01-2 2h-2"/><polygon points="12 15 17 21 7 21 12 15"/></svg>
+      <span>AirPlay</span>
+    </div>
+    <div class="mm-item" onclick="closeMobileMore();cycleSpeed()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <span>Vitesse</span>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
 HTMLEOF
