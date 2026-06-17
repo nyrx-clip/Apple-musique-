@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Coco Music">
 <meta name="theme-color" content="#000000">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; media-src 'self' blob: data: https://*.radio.funradio.fr https://stream.nrj.fr https://stream.virginradio.fr https://streaming.skyrock.com https://streams.ilovemusic.de https://jazzradio.ice.infomaniak.ch https://icecast.radiofrance.fr https://streaming.radio.funradio.fr; img-src 'self' blob: data:; connect-src 'self' blob: data:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiQ29jbyBNdXNpYyIsInNob3J0X25hbWUiOiJDb2NvIE11c2ljIiwiZGVzY3JpcHRpb24iOiJMZWN0ZXVyIG11c2ljYWwgcGVyc29ubmVsIiwic3RhcnRfdXJsIjoiLi9pbmRleGFwcG11c2lxdWUuaHRtbCIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwib3JpZW50YXRpb24iOiJwb3J0cmFpdCIsImJhY2tncm91bmRfY29sb3IiOiIjMDkwOTA5IiwidGhlbWVfY29sb3IiOiIjMDkwOTA5IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCxcdTAwM2NzdmcgeG1sbnM9XHUwMDI3aHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmdcdTAwMjcgdmlld0JveD1cdTAwMjcwIDAgMTAwIDEwMFx1MDAyN1x1MDAzZVx1MDAzY3JlY3Qgd2lkdGg9XHUwMDI3MTAwXHUwMDI3IGhlaWdodD1cdTAwMjcxMDBcdTAwMjcgcng9XHUwMDI3MjBcdTAwMjcgZmlsbD1cdTAwMjclMjNmYzNjNDRcdTAwMjcvXHUwMDNlXHUwMDNjdGV4dCB4PVx1MDAyNzUwXHUwMDI3IHk9XHUwMDI3NjhcdTAwMjcgZm9udC1zaXplPVx1MDAyNzUwXHUwMDI3IHRleHQtYW5jaG9yPVx1MDAyN21pZGRsZVx1MDAyNyBmaWxsPVx1MDAyN3doaXRlXHUwMDI3XHUwMDNl4pmqXHUwMDNjL3RleHRcdTAwM2VcdTAwM2Mvc3ZnXHUwMDNlIiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifSx7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCxcdTAwM2NzdmcgeG1sbnM9XHUwMDI3aHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmdcdTAwMjcgdmlld0JveD1cdTAwMjcwIDAgMTAwIDEwMFx1MDAyN1x1MDAzZVx1MDAzY3JlY3Qgd2lkdGg9XHUwMDI3MTAwXHUwMDI3IGhlaWdodD1cdTAwMjcxMDBcdTAwMjcgcng9XHUwMDI3MjBcdTAwMjcgZmlsbD1cdTAwMjclMjNmYzNjNDRcdTAwMjcvXHUwMDNlXHUwMDNjdGV4dCB4PVx1MDAyNzUwXHUwMDI3IHk9XHUwMDI3NjhcdTAwMjcgZm9udC1zaXplPVx1MDAyNzUwXHUwMDI3IHRleHQtYW5jaG9yPVx1MDAyN21pZGRsZVx1MDAyNyBmaWxsPVx1MDAyN3doaXRlXHUwMDI3XHUwMDNl4pmqXHUwMDNjL3RleHRcdTAwM2VcdTAwM2Mvc3ZnXHUwMDNlIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV0sImlkIjoiL2NvY28tbXVzaWMifQ==">
 <title>Coco Music</title>
@@ -2626,7 +2627,7 @@ async function addMultipleToPlaylist(plId) {
   closeModal();
   exitSelectMode();
   renderPlaylists(); renderSidebarPlaylists(); renderHome();
-  toast(`✅ ${added} titre(s) ajouté(s) à "${pl.name}"`);
+  toast('✅ ' + added + ' titre(s) ajouté(s) à "' + esc(pl.name) + '"');
 }
 
 /* ALBUMS */
@@ -2917,7 +2918,7 @@ async function createPlaylist(nameArg) {
   playlists.push(pl);
   closeModal();
   renderPlaylists(); renderSidebarPlaylists(); renderHome();
-  toast(`✅ "${n}" créée`);
+  toast('✅ "' + esc(n) + '" créée');
 }
 
 function openPlaylistMenu(plId, event) {
@@ -3166,10 +3167,18 @@ $('eq-toggle').addEventListener('change',e=>{
 });
 
 // ─── SEARCH ────────────────────────────────────────────────
+let _qsArtists = [];
+$('search-results').addEventListener('click', e => {
+  const btn = e.target.closest('[data-qs-idx]');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.qsIdx);
+  if (_qsArtists[idx]) quickSearch(_qsArtists[idx]);
+});
 function renderSearchSuggestions() {
   const el=$('search-results');
   const recent = [...library].sort((a,b)=>b.dateAdded-a.dateAdded).slice(0,5);
   const artists = [...new Set(library.map(t=>t.artist).filter(Boolean))].slice(0,6);
+  _qsArtists = artists;
   if (!library.length) {
     el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><h3>Recherche</h3><p>Importe de la musique pour voir des suggestions</p></div>`;
     return;
@@ -3179,7 +3188,7 @@ function renderSearchSuggestions() {
     <div class="tlist" style="padding:0 12px">${recent.map((t,i)=>trackItemHTML(t,i+1,false)).join('')}</div>` : ''}
     ${artists.length ? `<div style="padding:12px 20px 6px;font-size:13px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Artistes</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 16px">
-      ${artists.map(s => `<button class="eq-preset" onclick="quickSearch('${esc(s)}')">${esc(s)}</button>`).join('')}
+      ${artists.map((s,idx) => `<button class="eq-preset" data-qs-idx="${idx}">${esc(s)}</button>`).join('')}
     </div>` : ''}
     <div style="padding:0 20px 6px;font-size:13px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Parcourir</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 20px">
@@ -3432,7 +3441,7 @@ function toast(msg, dur=2800) {
   const wrap=$('toast-wrap');
   const el=document.createElement('div');
   el.className='toast';
-  el.innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>${msg}`;
+  el.innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;el.appendChild(document.createTextNode(msg));
   wrap.appendChild(el);
   setTimeout(()=>{el.classList.add('out');el.addEventListener('animationend',()=>el.remove());},dur);
 }
@@ -3444,7 +3453,7 @@ function hideProc(){$('proc').classList.remove('on');}
 
 // ─── UTILS ─────────────────────────────────────────────────
 function $(id){return document.getElementById(id);}
-function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'):''}
 function fmt(s){
   if(!s||isNaN(s)||!isFinite(s)) return '0:00';
   const t=Math.floor(s), h=Math.floor(t/3600), m=Math.floor((t%3600)/60), sec=t%60;
