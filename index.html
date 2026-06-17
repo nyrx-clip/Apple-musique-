@@ -1537,7 +1537,7 @@ const dbAll = (store) => new Promise((res,rej)=>{ const r=db.transaction(store).
 
 // ─── STATE ─────────────────────────────────────────────────
 let library = [];      // track metadata (no blobs)
-let blobs = {};        // { id: { audioBlob, artBlob } }
+// blobs cache removed — audioBlob/artBlob are stored in IndexedDB and accessed via blobURLs
 let blobURLs = {};     // { id: { audioURL, artURL } }
 let playlists = [];
 let queue = [];        // track ids in play order
@@ -2120,7 +2120,7 @@ async function handleFiles(files) {
   for (const lf of lrcFiles) {
     const baseName = lf.name.replace(/\.lrc$/i, '').toLowerCase();
     const text = await lf.text().catch(() => '');
-    if (text && text.includes('[ti:') || text.includes('[00:')) {
+    if (text && (text.includes('[ti:') || text.includes('[00:'))) {
       lrcMap[baseName] = parseLRC(text);
     }
   }
@@ -2168,7 +2168,9 @@ async function handleFiles(files) {
 async function importAudio(file, imgMap) {
   const tags = await readTags(file, file);
   const id = 'tr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-  const duration = await getAudioDuration(URL.createObjectURL(file));
+  const durURL = URL.createObjectURL(file);
+  const duration = await getAudioDuration(durURL);
+  URL.revokeObjectURL(durURL);
   const audioBlob = file;
 
   // Art: try embedded tags first, then matching image file by track name only
@@ -2252,8 +2254,7 @@ function encodeWAV(buf) {
 
 // ─── TAG READER ────────────────────────────────────────────
 async function readTags(file, fullFile) {
-  return new Promise(async res => {
-    try {
+  try {
       // Read in chunks to find moov box anywhere in the file
       const CHUNK = 2 * 1024 * 1024; // 2MB per chunk
       const maxChunks = Math.min(Math.ceil(file.size / CHUNK), 20); // Max 40MB read total
@@ -2271,7 +2272,7 @@ async function readTags(file, fullFile) {
         if (totalTagSize + 10 > headSize && fullFile) {
           buf = await readSlice(file, 0, Math.min(totalTagSize + 10, file.size));
         }
-        return res(parseID3(buf));
+        return parseID3(buf);
       }
 
       // Strategy 2: If no ID3, search for moov box in chunks from both ends
@@ -2308,12 +2309,11 @@ async function readTags(file, fullFile) {
         }
       }
 
-      return res(result);
-    } catch(e) {
-      console.warn('readTags error:', e);
-      res({title:null,artist:null,album:null,artBlob:null});
-    }
-  });
+      return result;
+  } catch(e) {
+    console.warn('readTags error:', e);
+    return {title:null,artist:null,album:null,artBlob:null};
+  }
 }
 function parseMP4(bytes) {
   const res = {title:null,artist:null,album:null,artBlob:null};
@@ -2479,12 +2479,17 @@ async function loadLibrary() {
   }
   playlists = await dbAll(STORE_PL);
 
-  // Load LRC data
+  // Load LRC data — batch read instead of N sequential queries
   lrcData = {};
-  for (const rec of all) {
-    const lrcRec = await dbGet(STORE_META, 'lrc_' + rec.id).catch(() => null);
-    if (lrcRec?.data) lrcData[rec.id] = lrcRec.data;
-  }
+  try {
+    const allMeta = await dbAll(STORE_META);
+    for (const m of allMeta) {
+      if (m.key && m.key.startsWith('lrc_') && m.data) {
+        const trackId = m.key.slice(4);
+        lrcData[trackId] = m.data;
+      }
+    }
+  } catch(e) { console.warn('LRC load error:', e); }
 }
 
 async function getAudioURL(trackId) {
@@ -3115,6 +3120,7 @@ async function removeTrack(trackId) {
   if(blobURLs[trackId]?.artURL) URL.revokeObjectURL(blobURLs[trackId].artURL);
   delete blobURLs[trackId];
   const idx=library.findIndex(t=>t.id===trackId);
+  if(idx<0) return;
   library.splice(idx,1);
   if(currentIdx===idx){audio.pause();isPlaying=false;currentIdx=-1;}
   else if(currentIdx>idx) currentIdx--;
@@ -3189,12 +3195,16 @@ function renderSearchSuggestions() {
     </div>`;
 }
 
+let _searchTimer=null;
 $('search-inp').addEventListener('input', e=>{
-  const q=e.target.value.toLowerCase().trim();
-  const el=$('search-results');
-  if(!q){ renderSearchSuggestions(); return; }
-  const res=library.filter(t=>t.title.toLowerCase().includes(q)||t.artist.toLowerCase().includes(q)||t.album.toLowerCase().includes(q));
-  el.innerHTML=res.length?res.map((t,i)=>trackItemHTML(t,null,false)).join(''):`<div class="empty"><h3>Aucun résultat</h3><p>Essaie autre chose</p></div>`;
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(()=>{
+    const q=e.target.value.toLowerCase().trim();
+    const el=$('search-results');
+    if(!q){ renderSearchSuggestions(); return; }
+    const res=library.filter(t=>t.title.toLowerCase().includes(q)||t.artist.toLowerCase().includes(q)||t.album.toLowerCase().includes(q));
+    el.innerHTML=res.length?res.map((t,i)=>trackItemHTML(t,null,false)).join(''):`<div class="empty"><h3>Aucun résultat</h3><p>Essaie autre chose</p></div>`;
+  },180);
 });
 function quickSearch(q) {
   $('search-inp').value = q;
@@ -3275,7 +3285,11 @@ document.querySelectorAll('[data-nav]').forEach(el=>{
   el.addEventListener('click',()=>nav(el.dataset.nav));
 });
 
-$('lib-filter').addEventListener('input',()=>renderLibrary());
+let _libFilterTimer=null;
+$('lib-filter').addEventListener('input',()=>{
+  clearTimeout(_libFilterTimer);
+  _libFilterTimer=setTimeout(renderLibrary,180);
+});
 $('sort-btn').addEventListener('click',e=>{
   if (selectMode) { exitSelectMode(); return; }
   ctx(e,[
@@ -3293,7 +3307,10 @@ function openFullPlayer() {
   $('full-player').classList.add('open');
   updateQueueUI();
 }
-function closeFullPlayer() { const el=$('full-player');if(el){el.classList.remove('open');el.style.transform='';} }
+function closeFullPlayer() { const el=$('full-player');if(el){el.classList.remove('open');el.style.transform='';}
+  // Stop lyrics sync when player is closed to save CPU
+  if(lrcInterval){cancelAnimationFrame(lrcInterval);lrcInterval=null;}
+}
 
 // Swipe-down gesture
 let fpTy=0;
@@ -3316,7 +3333,7 @@ document.querySelectorAll('.fp-tab').forEach(tab=>{
     tab.classList.add('active');
     $('fp-queue').classList.toggle('open', tab.dataset.tab==='queue');
     $('fp-lyrics').classList.toggle('open', tab.dataset.tab==='lyrics');
-    if(tab.dataset.tab==='queue') updateQueueUI();
+    if(tab.dataset.tab==='queue'){ updateQueueUI(); if(lrcInterval){cancelAnimationFrame(lrcInterval);lrcInterval=null;} }
     if(tab.dataset.tab==='lyrics') renderLyrics();
   });
 });
@@ -3490,6 +3507,7 @@ function checkInstallPrompt() {
 
 
 // ─── SETTINGS ──────────────────────────────────────────────
+let _spatialListenerAdded = false;
 function renderSettings() {
   const totalSize = library.length;
   const totalDur = library.reduce((s, t) => s + (t.duration || 0), 0);
@@ -3502,10 +3520,13 @@ function renderSettings() {
     <div>🎤 ${new Set(library.map(t => t.artist)).size} artiste(s)</div>
     <div>📂 ${playlists.length} playlist(s)</div>
   `;
-  $('spatial-toggle').addEventListener('change', e => {
-    if (e.target.checked) enableSpatialAudio();
-    else disableSpatialAudio();
-  });
+  if (!_spatialListenerAdded) {
+    _spatialListenerAdded = true;
+    $('spatial-toggle').addEventListener('change', e => {
+      if (e.target.checked) enableSpatialAudio();
+      else disableSpatialAudio();
+    });
+  }
 }
 
 function enableSpatialAudio() {
