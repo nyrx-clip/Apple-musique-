@@ -2585,8 +2585,23 @@ function exitSelectMode() {
 function toggleSelect(trackId) {
   if (selectedIds.has(trackId)) selectedIds.delete(trackId);
   else selectedIds.add(trackId);
-  renderLibrary();
 }
+// Delegated click for selectMode (no re-render, no scroll jump)
+$('lib-list').addEventListener('click', e => {
+  if (!selectMode) return;
+  const item = e.target.closest('.titem[data-id]');
+  if (!item || e.target.closest('.tmore')) return;
+  toggleSelect(item.dataset.id);
+  // Update visual state of THIS item only
+  const isSel = selectedIds.has(item.dataset.id);
+  const cb = item.querySelector('input[type="checkbox"]');
+  if (cb) cb.checked = isSel;
+  item.classList.toggle('selected', isSel);
+  item.classList.toggle('now', !!(library[currentIdx]?.id === item.dataset.id));
+  // Update count bar
+  const countEl = document.querySelector('#lib-list .sel-count');
+  if (countEl) countEl.textContent = selectedIds.size + ' sélectionné(s)';
+});
 function addSelectedToPlaylist() {
   if (selectedIds.size === 0) { toast('Sélectionne des titres'); return; }
   const ids = [...selectedIds];
@@ -2865,7 +2880,7 @@ function trackItemHTML(t, num, showNum) {
   const numHTML = isNow?`<div class="eqbars"><div class="eqb"></div><div class="eqb"></div><div class="eqb"></div></div>`:num||'';
   const isSelected = selectedIds.has(t.id);
   const selBox = selectMode ? `<div class="tnum" style="width:auto;padding-right:4px"><input type="checkbox" ${isSelected?'checked':''} style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer"></div>` : '';
-  const onClick = selectMode ? `event.stopPropagation();toggleSelect('${t.id}')` : `playById('${t.id}')`;
+  const onClick = !selectMode ? `playById('${t.id}')` : '';
   return `<div class="titem${isNow?' now':''}${isSelected?' selected':''}" data-id="${t.id}" onclick="${onClick}">
     ${selBox}
     ${showNum!==false && !selectMode?`<div class="tnum" data-num="${num||''}">${numHTML}</div>`:''}
