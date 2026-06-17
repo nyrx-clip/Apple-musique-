@@ -67,6 +67,13 @@
   border-radius: 999px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
 }
+.glass-dark {
+  background: linear-gradient(135deg, rgba(20,20,20,0.82), rgba(20,20,20,0.92));
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+}
 
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
 html { height:100%; overflow:hidden; background:var(--bg); }
@@ -454,11 +461,6 @@ body {
   flex:1; display:flex; flex-direction:column;
   overflow:hidden;
   padding-top:calc(var(--safe-t) + 10px);
-  background:linear-gradient(135deg, rgba(30,30,30,0.82), rgba(20,20,20,0.92));
-  backdrop-filter:blur(30px) saturate(180%);
-  -webkit-backdrop-filter:blur(30px) saturate(180%);
-  border:1px solid rgba(255,255,255,0.1);
-  box-shadow:0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 /* FP Header */
@@ -656,10 +658,6 @@ body {
   border-radius:var(--r-lg); padding:44px 24px;
   text-align:center; margin:0 20px; cursor:pointer;
   transition:border-color 0.2s, background 0.2s;
-  background:linear-gradient(135deg, rgba(20,20,20,0.82), rgba(20,20,20,0.92));
-  backdrop-filter:blur(30px) saturate(180%);
-  -webkit-backdrop-filter:blur(30px) saturate(180%);
-  box-shadow:0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 .drop-zone:hover, .drop-zone.over {
   border-color:var(--accent);
@@ -793,13 +791,8 @@ body {
 /* ── CONTEXT MENU ── */
 #ctx {
   position:fixed; z-index:800;
-  background:linear-gradient(135deg, rgba(20,20,20,0.82), rgba(20,20,20,0.92));
-  backdrop-filter:blur(30px) saturate(180%);
-  -webkit-backdrop-filter:blur(30px) saturate(180%);
-  border:1px solid rgba(255,255,255,0.1);
   border-radius:var(--r-xl); padding:5px;
   min-width:210px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
   display:none;
   animation:ctxIn 0.16s var(--spring);
   transform-origin:top center;
@@ -829,16 +822,13 @@ body {
 #modal-ov.open { opacity:1; pointer-events:all; }
 #modal-sheet {
   width:100%; max-width:560px;
-  background:linear-gradient(135deg, rgba(20,20,20,0.82), rgba(20,20,20,0.92));
-  backdrop-filter:blur(30px) saturate(180%); -webkit-backdrop-filter:blur(30px) saturate(180%);
   border-radius:var(--r-xl) var(--r-xl) 0 0;
-  border:1px solid rgba(255,255,255,0.1); border-bottom:none;
+  border-bottom:none;
   padding:14px 0 0;
   transform:translateY(22px);
   transition:transform 0.3s var(--slide);
   max-height:82svh; overflow-y:auto;
   scrollbar-width:none;
-  box-shadow:0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 #modal-sheet::-webkit-scrollbar { display:none; }
 #modal-ov.open #modal-sheet { transform:translateY(0); }
@@ -1082,11 +1072,11 @@ body {
 <div id="sleep-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span id="sleep-txt">30:00</span></div>
 
 <!-- Context menu -->
-<div id="ctx"></div>
+<div id="ctx" class="glass-dark"></div>
 
 <!-- Modal -->
 <div id="modal-ov" onclick="if(event.target===this)closeModal()">
-  <div id="modal-sheet">
+  <div id="modal-sheet" class="glass-dark">
     <div class="modal-handle"></div>
     <div id="modal-body"></div>
   </div>
@@ -1294,7 +1284,7 @@ body {
       <!-- IMPORT -->
       <div class="view" id="view-import">
         <div class="ph"><div class="ph-title">Importer</div></div>
-        <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone glass-dark" id="drop-zone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           <h3>Glisse tes fichiers ici</h3>
           <p>MP3, FLAC, WAV, AAC, M4A, AIFF, OGG, OPUS<br>Et vidéos : MP4, MKV, WebM, MOV</p>
@@ -1412,7 +1402,7 @@ body {
 <div id="full-player">
   <div id="fp-bg"></div>
   <div id="fp-blur"></div>
-  <div id="fp-inner">
+  <div id="fp-inner" class="glass-dark">
     <div id="fp-hd">
       <button id="fp-down" onclick="closeFullPlayer()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1530,10 +1520,13 @@ function openDB() {
     req.onerror = () => rej(req.error);
   });
 }
-const dbGet = (store, key) => new Promise((res,rej)=>{ const r=db.transaction(store).objectStore(store).get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
-const dbPut = (store, val) => new Promise((res,rej)=>{ const r=db.transaction(store,'readwrite').objectStore(store).put(val); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
-const dbDel = (store, key) => new Promise((res,rej)=>{ const r=db.transaction(store,'readwrite').objectStore(store).delete(key); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
-const dbAll = (store) => new Promise((res,rej)=>{ const r=db.transaction(store).objectStore(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+function dbOp(store, mode, fn) {
+  return new Promise((res,rej)=>{ const r=fn(db.transaction(store,mode).objectStore(store)); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+}
+const dbGet = (store, key) => dbOp(store,'readonly', s=>s.get(key));
+const dbPut = (store, val)  => dbOp(store,'readwrite',s=>s.put(val));
+const dbDel = (store, key)  => dbOp(store,'readwrite',s=>s.delete(key));
+const dbAll = (store)        => dbOp(store,'readonly', s=>s.getAll());
 
 // ─── STATE ─────────────────────────────────────────────────
 let library = [];      // track metadata (no blobs)
@@ -1682,13 +1675,11 @@ async function playById(trackId, resetQ=true) {
   if (!audioURL) {
     const stored = await dbGet(STORE_TRACKS, trackId).catch(()=>null);
     if (stored?.audioBlob) {
-      if (!blobURLs[trackId]) blobURLs[trackId] = {};
-      blobURLs[trackId].audioURL = URL.createObjectURL(stored.audioBlob);
+      ensureBlobBucket(trackId).audioURL = URL.createObjectURL(stored.audioBlob);
       audioURL = blobURLs[trackId].audioURL;
     }
     if (stored?.artBlob && !blobURLs[trackId]?.artURL) {
-      if (!blobURLs[trackId]) blobURLs[trackId] = {};
-      blobURLs[trackId].artURL = URL.createObjectURL(stored.artBlob);
+      ensureBlobBucket(trackId).artURL = URL.createObjectURL(stored.artBlob);
     }
   }
 
@@ -2021,14 +2012,11 @@ function updatePlayerUI() {
 }
 
 function updatePlayIcons() {
-  const ply = isPlaying;
-  const play = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-  const pause = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-  $('pp-play-btn').innerHTML = ply ? pause : play;
-  $('fp-play-btn').innerHTML = ply ? pause : play;
-  $('hero-play-icon').outerHTML = ply
-    ? `<svg id="hero-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`
-    : `<svg id="hero-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+  const icon = isPlaying ? svgIcon('pause',{fill:'currentColor'}) : svgIcon('play',{fill:'currentColor'});
+  $('pp-play-btn').innerHTML = icon;
+  $('fp-play-btn').innerHTML = icon;
+  const heroIcon = isPlaying ? 'pause' : 'play';
+  $('hero-play-icon').outerHTML = `<svg id="hero-play-icon" viewBox="0 0 24 24" fill="currentColor">${ICONS[heroIcon]}</svg>`;
 }
 
 function updateArtState() {
@@ -2056,8 +2044,8 @@ function updateFavBtn(t) {
   if (!t) return;
   btn.classList.toggle('on', !!t.favorite);
   btn.innerHTML = t.favorite
-    ? `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`
-    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`;
+    ? svgIcon('heart', {fill:'currentColor'})
+    : svgIcon('heart', {strokeWidth:'2'});
 }
 
 // ─── COLORS ────────────────────────────────────────────────
@@ -2456,8 +2444,16 @@ function parseID3(buf) {
   return res;
 }
 
-const getAudioDuration = url => new Promise(res=>{const a=new Audio();a.onloadedmetadata=()=>res(a.duration||0);a.onerror=()=>res(0);a.src=url;});
-const getVideoDuration = url => new Promise(res=>{const v=document.createElement('video');v.onloadedmetadata=()=>res(v.duration||0);v.onerror=()=>res(0);v.src=url;});
+function getMediaDuration(url, tag) {
+  return new Promise(res=>{
+    const el = tag==='video' ? document.createElement('video') : new Audio();
+    el.onloadedmetadata=()=>res(el.duration||0);
+    el.onerror=()=>res(0);
+    el.src=url;
+  });
+}
+const getAudioDuration = url => getMediaDuration(url, 'audio');
+const getVideoDuration = url => getMediaDuration(url, 'video');
 const cleanName = n => n.replace(/\.[^/.]+$/,'').replace(/[-_]+/g,' ').replace(/\s+/g,' ').trim();
 
 // ─── LIBRARY LOAD ──────────────────────────────────────────
@@ -2473,8 +2469,7 @@ async function loadLibrary() {
   // Pre-create art URLs (small — just for display)
   for (const rec of all) {
     if (rec.artBlob) {
-      blobURLs[rec.id] = blobURLs[rec.id] || {};
-      blobURLs[rec.id].artURL = URL.createObjectURL(rec.artBlob);
+      ensureBlobBucket(rec.id).artURL = URL.createObjectURL(rec.artBlob);
     }
   }
   playlists = await dbAll(STORE_PL);
@@ -2492,8 +2487,7 @@ async function getAudioURL(trackId) {
   const rec = await dbGet(STORE_TRACKS, trackId);
   if (!rec?.audioBlob) return null;
   const url = URL.createObjectURL(rec.audioBlob);
-  blobURLs[trackId] = blobURLs[trackId] || {};
-  blobURLs[trackId].audioURL = url;
+  ensureBlobBucket(trackId).audioURL = url;
   return url;
 }
 
@@ -2511,9 +2505,7 @@ function renderAll() {
 
 /* HOME */
 function renderHome() {
-  const h = new Date().getHours();
-  const g = h<12?'Bonjour':h<18?'Bonne après-midi':'Bonsoir';
-  $('home-greeting').textContent = g + ' 👋';
+  $('home-greeting').textContent = getGreeting();
 
   const sorted = [...library].sort((a,b)=>{
     const ap = a.lastPlayed||0, bp = b.lastPlayed||0;
@@ -2590,16 +2582,7 @@ $('lib-list').addEventListener('click', e => {
 function addSelectedToPlaylist() {
   if (selectedIds.size === 0) { toast('Sélectionne des titres'); return; }
   const ids = [...selectedIds];
-  if (!playlists.length) {
-    openModal(`
-      <div class="modal-title">Aucune playlist</div>
-      <p style="text-align:center;color:var(--text2);font-size:14px;padding:0 20px 16px">Crée d'abord une playlist</p>
-      <button class="modal-btn primary" onclick="closeModal();nav('playlists')">Playlists</button>
-      <button class="modal-btn secondary" onclick="closeModal()">Annuler</button>
-      <div class="modal-pad"></div>
-    `);
-    return;
-  }
+  if (!playlists.length) { noPlaylistModal(); return; }
   const btns = playlists.map(pl =>
     `<button class="modal-btn secondary" onclick="addMultipleToPlaylist('${pl.id}')">${esc(pl.name)}</button>`
   ).join('');
@@ -2625,7 +2608,7 @@ async function addMultipleToPlaylist(plId) {
   await dbPut(STORE_PL, pl);
   closeModal();
   exitSelectMode();
-  renderPlaylists(); renderSidebarPlaylists(); renderHome();
+  refreshPlaylistViews();
   toast(`✅ ${added} titre(s) ajouté(s) à "${pl.name}"`);
 }
 
@@ -2641,12 +2624,13 @@ function renderAlbums() {
   const albums=Object.values(map);
   $('albums-grid').innerHTML = albums.length
     ? albums.map(a=>{
-        const art=a.artUrl?`<img src="${a.artUrl}" alt="" loading="lazy" onerror="imgErr(this)">`:`<div class="cthumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="3"/></svg></div>`;
+        const art=a.artUrl?`<img src="${a.artUrl}" alt="" loading="lazy" onerror="imgErr(this)">`
+          :`<div class="cthumb-ph">${svgIcon('album')}</div>`;
         return `<div class="card album-card" onclick="playAlbumTracks(${JSON.stringify(a.tracks)})">
-          <div class="cthumb">${art}<div class="cplay"><svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
+          <div class="cthumb">${art}<div class="cplay">${svgIcon('play',{fill:'white'})}</div></div>
           <div class="ctitle">${esc(a.album)}</div><div class="csub">${esc(a.artist)}</div></div>`;
       }).join('')
-    : `<div class="empty"><h3>Aucun album</h3></div>`;
+    : emptyHTML('album', 'Aucun album', '');
 }
 
 /* ARTISTS */
@@ -2661,31 +2645,32 @@ function renderArtists() {
   const arr=Object.values(map).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   $('artists-list').innerHTML = arr.length
     ? arr.map(a=>{
-        const art=a.artUrl?`<img src="${a.artUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="imgErr(this)">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:45%;height:45%;opacity:0.35"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+        const art=a.artUrl?`<img src="${a.artUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="imgErr(this)">`
+          :svgIcon('person',{style:'width:45%;height:45%;opacity:0.35'});
         return `<div class="titem" onclick="playAlbumTracks(${JSON.stringify(a.ids)})">
           <div class="tart" style="border-radius:50%;display:flex;align-items:center;justify-content:center">${art}</div>
           <div class="tinfo"><div class="ttitle">${esc(a.name)}</div><div class="tartist">${a.count} titre${a.count>1?'s':''}</div></div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:var(--text4)"><polyline points="9 18 15 12 9 6"/></svg>
+          ${svgIcon('chevRight',{strokeWidth:'2',style:'width:14px;height:14px;color:var(--text4)'})}
         </div>`;
       }).join('')
-    : `<div class="empty"><h3>Aucun artiste</h3></div>`;
+    : emptyHTML('person', 'Aucun artiste', '');
 }
 
 /* PLAYLISTS */
 function renderPlaylists() {
   $('playlists-list').innerHTML = playlists.length
     ? playlists.map(pl=>{
-        const tracks=pl.trackIds.map(id=>library.find(t=>t.id===id)).filter(Boolean);
-  const artUrl=pl.coverURL||(tracks[0]?blobURLs[tracks[0].id]?.artURL:null);
-        const art=artUrl?`<img src="${artUrl}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="imgErr(this)">`:
-          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:44%;height:44%;opacity:0.35"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/></svg>`;
+        const tracks=resolvePlaylistTracks(pl);
+  const artUrl=getPlaylistArtUrl(pl);
+        const art=artUrl?`<img src="${artUrl}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="imgErr(this)">`
+          :svgIcon('list',{style:'width:44%;height:44%;opacity:0.35'});
         return `<div class="titem" onclick="openPlaylistDetail('${pl.id}')">
           <div class="tart" style="display:flex;align-items:center;justify-content:center">${art}</div>
           <div class="tinfo"><div class="ttitle">${esc(pl.name)}</div><div class="tartist">${tracks.length} titre${tracks.length!==1?'s':''}</div></div>
-          <div class="tmore" onclick="event.stopPropagation();openPlaylistMenu('${pl.id}',event)"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+          <div class="tmore" onclick="event.stopPropagation();openPlaylistMenu('${pl.id}',event)">${svgIcon('dots',{fill:'currentColor'})}</div>
         </div>`;
       }).join('')
-    : `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg><h3>Aucune playlist</h3><p>Appuie sur + pour en créer une</p></div>`;
+    : emptyHTML('list', 'Aucune playlist', 'Appuie sur + pour en créer une');
 }
 
 /* FAVORITES */
@@ -2693,7 +2678,7 @@ function renderFavorites() {
   const favs=library.filter(t=>t.favorite);
   $('favorites-list').innerHTML = favs.length
     ? favs.map((t,i)=>trackItemHTML(t,i+1,false)).join('')
-    : `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><h3>Aucun favori</h3><p>Appuie sur ♥ pour ajouter</p></div>`;
+    : emptyHTML('heart', 'Aucun favori', 'Appuie sur ♥ pour ajouter');
 }
 
 /* SIDEBAR PLAYLISTS */
@@ -2701,8 +2686,7 @@ function renderSidebarPlaylists() {
   const sec = $('sb-pl-section');
   sec.style.display = playlists.length ? 'block' : 'none';
   $('sb-playlists').innerHTML = playlists.map(pl=>{
-    const t=pl.trackIds.length?library.find(x=>x.id===pl.trackIds[0]):null;
-    const artUrl=pl.coverURL||(t?blobURLs[t.id]?.artURL:null);
+    const artUrl=getPlaylistArtUrl(pl);
     return `<div class="sb-item" onclick="openPlaylistDetail('${pl.id}')">
       <div class="pl-thumb">${artUrl?`<img src="${artUrl}" alt="" onerror="imgErr(this)">`:'♫'}</div>
       <span class="lbl">${esc(pl.name)}</span>
@@ -2726,8 +2710,7 @@ function updateQueueUI() {
     ? upcoming.map((id,i)=>{
         const t=library.find(x=>x.id===id);
         if(!t) return '';
-        const artUrl=blobURLs[t.id]?.artURL;
-  const art=artUrl?`<img src="${artUrl}" alt="" loading="lazy" onerror="imgErr(this)">`:`<div class="tart-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
+        const art=trackArtHTML(t.id, 'tart', 'tart-ph', 'music');
         return `<div class="titem" onclick="playFromQueue(${queueIdx+1+i})">
           <div class="tart">${art}</div>
           <div class="tinfo"><div class="ttitle">${esc(t.title)}</div><div class="tartist">${esc(t.artist)}</div></div>
@@ -2770,11 +2753,11 @@ function playRadio(i) {
 function openPlaylistDetail(plId) {
   const pl=playlists.find(p=>p.id===plId);
   if (!pl) return;
-  const tracks=pl.trackIds.map(id=>library.find(t=>t.id===id)).filter(Boolean);
+  const tracks=resolvePlaylistTracks(pl);
   $('pd-hd-title').textContent=pl.name;
-  const artUrl=pl.coverURL||(tracks[0]?blobURLs[tracks[0].id]?.artURL:null);
-  const artEl=artUrl?`<img src="${artUrl}" alt="" onerror="imgErr(this)">`:
-    `<div class="pd-art-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg></div>`;
+  const artUrl=getPlaylistArtUrl(pl);
+  const artEl=artUrl?`<img src="${artUrl}" alt="" onerror="imgErr(this)">`
+    :`<div class="pd-art-ph">${svgIcon('list')}</div>`;
   const totalDur=tracks.reduce((s,t)=>s+(t.duration||0),0);
   $('pd-hero-zone').innerHTML=`
     <div class="pd-hero">
@@ -2787,7 +2770,7 @@ function openPlaylistDetail(plId) {
     </div>
     <div class="pd-actions">
       <button class="pd-btn play" onclick="playPlaylist('${pl.id}')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Lecture
+        ${svgIcon('play',{fill:'currentColor'})} Lecture
       </button>
       <button class="pd-btn shuf" onclick="shufflePlaylist('${pl.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg> Aléatoire
@@ -2834,33 +2817,31 @@ function playAlbumTracks(ids) {
 
 /* HTML BUILDERS */
 function imgErr(el) {
-  el.outerHTML='<div class="cthumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>';
+  el.outerHTML='<div class="cthumb-ph">'+svgIcon('music')+'</div>';
 }
 function cardHTML(t) {
-  const artUrl=blobURLs[t.id]?.artURL;
-  const art=artUrl?`<img src="${artUrl}" alt="" loading="lazy" onerror="imgErr(this)">`:`<div class="cthumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
+  const art=trackArtHTML(t.id, 'cthumb', 'cthumb-ph', 'music');
   return `<div class="card album-card" onclick="playById('${t.id}')">
-    <div class="cthumb">${art}<div class="cplay"><svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
+    <div class="cthumb">${art}<div class="cplay">${svgIcon('play',{fill:'white'})}</div></div>
     <div class="ctitle">${esc(t.title)}</div>
     <div class="csub">${esc(t.artist)}</div>
   </div>`;
 }
 
 function playlistCardHTML(pl) {
-  const tracks=pl.trackIds.map(id=>library.find(t=>t.id===id)).filter(Boolean);
-  const artUrl=pl.coverURL||(tracks[0]?blobURLs[tracks[0].id]?.artURL:null);
-  const art=artUrl?`<img src="${artUrl}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="imgErr(this)">`:
-    `<div class="cthumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/></svg></div>`;
+  const tracks=resolvePlaylistTracks(pl);
+  const artUrl=getPlaylistArtUrl(pl);
+  const art=artUrl?`<img src="${artUrl}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="imgErr(this)">`
+    :`<div class="cthumb-ph">${svgIcon('list')}</div>`;
   return `<div class="card album-card" onclick="openPlaylistDetail('${pl.id}')">
-    <div class="cthumb">${art}<div class="cplay"><svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
+    <div class="cthumb">${art}<div class="cplay">${svgIcon('play',{fill:'white'})}</div></div>
     <div class="ctitle">${esc(pl.name)}</div>
     <div class="csub">${tracks.length} titre${tracks.length!==1?'s':''}</div>
   </div>`;
 }
 
 function trackItemHTML(t, num, showNum) {
-  const artUrl=blobURLs[t.id]?.artURL;
-  const art=artUrl?`<img src="${artUrl}" alt="" loading="lazy" onerror="imgErr(this)">`:`<div class="tart-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
+  const art=trackArtHTML(t.id, 'tart', 'tart-ph', 'music');
   const isNow = library[currentIdx]?.id === t.id;
   const numHTML = isNow?`<div class="eqbars"><div class="eqb"></div><div class="eqb"></div><div class="eqb"></div></div>`:num||'';
   const isSelected = selectedIds.has(t.id);
@@ -2876,7 +2857,7 @@ function trackItemHTML(t, num, showNum) {
     </div>
     <div class="tdur">${fmt(t.duration)}</div>
     <div class="tmore" onclick="event.stopPropagation();openTrackCtx('${t.id}',event)">
-      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      ${svgIcon('dots',{fill:'currentColor'})}
     </div>
   </div>`;
 }
@@ -2916,7 +2897,7 @@ async function createPlaylist(nameArg) {
   await dbPut(STORE_PL, pl);
   playlists.push(pl);
   closeModal();
-  renderPlaylists(); renderSidebarPlaylists(); renderHome();
+  refreshPlaylistViews();
   toast(`✅ "${n}" créée`);
 }
 
@@ -2942,7 +2923,7 @@ document.addEventListener('change', function(e){
   reader.onload=async function(ev){
     pl.coverURL=ev.target.result;
     await dbPut(STORE_PL, pl);
-    renderPlaylists(); renderSidebarPlaylists(); renderHome();
+    refreshPlaylistViews();
     if(document.getElementById('view-pdtail')?.classList.contains('active')) openPlaylistDetail(plId);
     toast('🖼 Cover mise à jour');
   };
@@ -2971,7 +2952,7 @@ async function doRename(plId) {
   pl.name=n;
   await dbPut(STORE_PL, pl);
   closeModal();
-  renderPlaylists(); renderSidebarPlaylists(); renderHome();
+  refreshPlaylistViews();
   toast('✅ Renommée');
 }
 
@@ -2979,7 +2960,7 @@ async function deletePlaylist(plId) {
   await dbDel(STORE_PL, plId);
   playlists=playlists.filter(p=>p.id!==plId);
   closeModal();
-  renderPlaylists(); renderSidebarPlaylists(); renderHome();
+  refreshPlaylistViews();
   if (document.getElementById('view-pdtail')?.classList.contains('active')) nav('playlists');
   toast('🗑️ Playlist supprimée');
 }
@@ -2991,21 +2972,12 @@ async function addTrackToPlaylist(trackId, plId) {
   pl.trackIds.push(trackId);
   await dbPut(STORE_PL, pl);
   closeModal();
-  renderPlaylists(); renderSidebarPlaylists(); renderHome();
+  refreshPlaylistViews();
   toast('✅ Ajouté à la playlist');
 }
 
 function openAddToPlaylistModal(trackId) {
-  if(!playlists.length){
-    openModal(`
-      <div class="modal-title">Aucune playlist</div>
-      <p style="text-align:center;color:var(--text2);font-size:14px;padding:0 20px 16px">Crée d'abord une playlist</p>
-      <button class="modal-btn primary" onclick="closeModal();nav('playlists')">Playlists</button>
-      <button class="modal-btn secondary" onclick="closeModal()">Annuler</button>
-      <div class="modal-pad"></div>
-    `);
-    return;
-  }
+  if(!playlists.length){ noPlaylistModal(); return; }
   const btns=playlists.map(pl=>
     `<button class="modal-btn secondary" onclick="addTrackToPlaylist('${trackId}','${pl.id}')">${esc(pl.name)}</button>`
   ).join('');
@@ -3073,12 +3045,8 @@ function changeTrackArt(trackId) {
       if (!file) return;
       const buf = await file.arrayBuffer();
       const blob = new Blob([buf], { type: file.type || 'image/jpeg' });
-      if (blobURLs[trackId]) {
-        if (blobURLs[trackId].artURL) URL.revokeObjectURL(blobURLs[trackId].artURL);
-      } else {
-        blobURLs[trackId] = {};
-      }
-      blobURLs[trackId].artURL = URL.createObjectURL(blob);
+      if (blobURLs[trackId]?.artURL) URL.revokeObjectURL(blobURLs[trackId].artURL);
+      ensureBlobBucket(trackId).artURL = URL.createObjectURL(blob);
       const libIdx = library.findIndex(t => t.id === trackId);
       if (libIdx >= 0) {
         library[libIdx] = { ...library[libIdx], artBlob: blob };
@@ -3171,7 +3139,7 @@ function renderSearchSuggestions() {
   const recent = [...library].sort((a,b)=>b.dateAdded-a.dateAdded).slice(0,5);
   const artists = [...new Set(library.map(t=>t.artist).filter(Boolean))].slice(0,6);
   if (!library.length) {
-    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><h3>Recherche</h3><p>Importe de la musique pour voir des suggestions</p></div>`;
+    el.innerHTML=emptyHTML('search','Recherche','Importe de la musique pour voir des suggestions');
     return;
   }
   el.innerHTML=`
@@ -3451,6 +3419,80 @@ function fmt(s){
   return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`:`${m}:${String(sec).padStart(2,'0')}`;
 }
 
+// ─── SHARED SVG ICONS ──────────────────────────────────────
+const ICONS = {
+  music:     '<path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/>',
+  play:      '<path d="M8 5v14l11-7z"/>',
+  pause:     '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>',
+  heart:     '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>',
+  dots:      '<circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>',
+  search:    '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>',
+  list:      '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>',
+  person:    '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  album:     '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="3"/>',
+  chevRight: '<polyline points="9 18 15 12 9 6"/>',
+  skipBack:  '<path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>',
+  skipFwd:   '<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>',
+};
+function svgIcon(name, opts={}) {
+  const fill = opts.fill || 'none';
+  const stroke = opts.stroke || 'currentColor';
+  const sw = opts.strokeWidth || '1.5';
+  const style = opts.style || '';
+  const cls = opts.cls || '';
+  const isFilled = fill !== 'none';
+  return `<svg viewBox="0 0 24 24"${cls?' class="'+cls+'"':''} fill="${isFilled?fill:'none'}" ${isFilled?'':'stroke="'+stroke+'" stroke-width="'+sw+'"'}${style?' style="'+style+'"':''}>${ICONS[name]}</svg>`;
+}
+
+// ─── SHARED ARTWORK HELPERS ────────────────────────────────
+function trackArtHTML(trackId, cls, phCls, fallbackIcon) {
+  const artUrl = blobURLs[trackId]?.artURL;
+  const icon = fallbackIcon || 'music';
+  if (artUrl) return `<img src="${artUrl}" alt="" loading="lazy" onerror="imgErr(this)">`;
+  return `<div class="${phCls||'cthumb-ph'}">${svgIcon(icon)}</div>`;
+}
+function getPlaylistArtUrl(pl) {
+  if (pl.coverURL) return pl.coverURL;
+  const firstTrack = pl.trackIds.length ? library.find(t => t.id === pl.trackIds[0]) : null;
+  return firstTrack ? (blobURLs[firstTrack.id]?.artURL || null) : null;
+}
+function resolvePlaylistTracks(pl) {
+  return pl.trackIds.map(id => library.find(t => t.id === id)).filter(Boolean);
+}
+
+// ─── SHARED EMPTY STATE HELPER ─────────────────────────────
+function emptyHTML(icon, title, desc) {
+  return `<div class="empty">${svgIcon(icon)}<h3>${title}</h3><p>${desc}</p></div>`;
+}
+
+// ─── SHARED MODAL: NO PLAYLISTS ────────────────────────────
+function noPlaylistModal() {
+  openModal(`
+    <div class="modal-title">Aucune playlist</div>
+    <p style="text-align:center;color:var(--text2);font-size:14px;padding:0 20px 16px">Crée d'abord une playlist</p>
+    <button class="modal-btn primary" onclick="closeModal();nav('playlists')">Playlists</button>
+    <button class="modal-btn secondary" onclick="closeModal()">Annuler</button>
+    <div class="modal-pad"></div>
+  `);
+}
+
+// ─── SHARED PLAYLIST VIEW REFRESH ──────────────────────────
+function refreshPlaylistViews() {
+  renderPlaylists(); renderSidebarPlaylists(); renderHome();
+}
+
+// ─── SHARED BLOB URL BUCKET ────────────────────────────────
+function ensureBlobBucket(trackId) {
+  if (!blobURLs[trackId]) blobURLs[trackId] = {};
+  return blobURLs[trackId];
+}
+
+// ─── SHARED GREETING ───────────────────────────────────────
+function getGreeting() {
+  const h = new Date().getHours();
+  return (h < 12 ? 'Bonjour' : h < 18 ? 'Bonne après-midi' : 'Bonsoir') + ' 👋';
+}
+
 // ─── KEYBOARD SHORTCUTS ────────────────────────────────────
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
@@ -3618,8 +3660,7 @@ async function init() {
   $('fp-shuf-btn').classList.toggle('dim',!isShuffle);
 
   // Greeting time-based
-  const h=new Date().getHours();
-  $('home-greeting').textContent = (h<12?'Bonjour':h<18?'Bonne après-midi':'Bonsoir') + ' 👋';
+  $('home-greeting').textContent = getGreeting();
 
   // Hide splash
   const splash=$('splash');
