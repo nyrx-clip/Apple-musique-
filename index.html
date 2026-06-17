@@ -2171,27 +2171,12 @@ async function importAudio(file, imgMap) {
   const duration = await getAudioDuration(URL.createObjectURL(file));
   const audioBlob = file;
 
-  // Art: try embedded tags first, then matching image file in the batch
+  // Art: try embedded tags first, then matching image file by track name only
   let artBlob = tags.artBlob || null;
   if (!artBlob && imgMap) {
     const baseName = file.name.replace(/\.[^/.]+$/, '').toLowerCase();
-    // Try multiple matching patterns
-    const patterns = [
-      baseName,                     // musique.mp3 -> musique.jpg
-      baseName.replace(/\s+/g, ''), // ma musique -> mamusique
-      baseName.replace(/[-\s]+/g, '_'), // ma musique -> ma_musique
-      'cover', 'folder', 'artwork', 'front',
-      'albumart', 'thumb', 'thumbnail'
-    ];
-    let matched = null;
-    for (const p of patterns) {
-      if (imgMap[p]) { matched = imgMap[p]; break; }
-    }
-    // Fallback: take the first image if nothing matched
-    if (!matched) {
-      const vals = Object.values(imgMap);
-      if (vals.length === 1) matched = vals[0];
-    }
+    // Match only by track name — no generic cover/folder patterns
+    const matched = imgMap[baseName] || imgMap[baseName.replace(/\s+/g, '')];
     if (matched) {
       artBlob = new Blob([await matched.arrayBuffer()], { type: matched.type || 'image/jpeg' });
     }
