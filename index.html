@@ -1620,7 +1620,10 @@ function initAudio() {
       eqFilters.push(f);
     }
     startVis();
-  } catch(e) { console.warn('AudioCtx fail:',e); }
+  } catch(e) {
+    console.warn('AudioCtx init failed:', e);
+    toast('⚠️ Moteur audio indisponible');
+  }
 }
 
 // ─── VISUALIZER ────────────────────────────────────────────
@@ -1680,7 +1683,7 @@ async function playById(trackId, resetQ=true) {
   // Get audio URL
   let audioURL = blobURLs[trackId]?.audioURL;
   if (!audioURL) {
-    const stored = await dbGet(STORE_TRACKS, trackId).catch(()=>null);
+    const stored = await dbGet(STORE_TRACKS, trackId).catch(e => { console.warn('Failed to load track from DB:', trackId, e); return null; });
     if (stored?.audioBlob) {
       if (!blobURLs[trackId]) blobURLs[trackId] = {};
       blobURLs[trackId].audioURL = URL.createObjectURL(stored.audioBlob);
@@ -1740,7 +1743,7 @@ async function playById(trackId, resetQ=true) {
           await new Promise(r => setTimeout(r, 100));
           await audioCtx.resume();
           await new Promise(r => setTimeout(r, 100));
-        } catch(e2) {}
+        } catch(e2) { console.warn('AudioCtx suspend/resume retry failed:', e2); }
       }
     }
   }
@@ -1766,7 +1769,7 @@ async function playById(trackId, resetQ=true) {
   saveSession();
   // Track last played
   track.lastPlayed = Date.now();
-  dbPut(STORE_TRACKS, track).catch(()=>{});
+  dbPut(STORE_TRACKS, track).catch(e => console.warn('Failed to save lastPlayed:', e));
   renderHome();
   // Restart lyrics sync
   if (lrcInterval) { cancelAnimationFrame(lrcInterval); lrcInterval = null; }
@@ -1802,7 +1805,7 @@ function togglePlay() {
     _userPaused = false;
     if (audioCtx?.state==='suspended') audioCtx.resume();
     unlockSilent();
-    audio.play().catch(()=>{});
+    audio.play().catch(e => { console.warn('togglePlay resume failed:', e); toast('⚠️ Lecture impossible'); });
   }
 }
 
@@ -1810,7 +1813,7 @@ function nextTrack() {
   if (isAdvancing) return;
   isAdvancing=true;
   setTimeout(()=>{isAdvancing=false;},800);
-  if (repeatMode===2) { audio.currentTime=0; audio.play().catch(()=>{}); return; }
+  if (repeatMode===2) { audio.currentTime=0; audio.play().catch(e => { console.warn('Repeat-one replay failed:', e); toast('⚠️ Lecture impossible'); }); return; }
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
   if (queue.length===0) { isAdvancing=false; return; }
   if (queueIdx < queue.length-1) {
@@ -1857,7 +1860,7 @@ function toggleShuffle() {
     buildQueue(library[currentIdx].id);
     // Si en pause, lancer la lecture après avoir mélangé
     if (!isPlaying && audio.src && audio.paused) {
-      audio.play().then(() => { isPlaying = true; updatePlayIcons(); updateArtState(); }).catch(() => {});
+      audio.play().then(() => { isPlaying = true; updatePlayIcons(); updateArtState(); }).catch(e => console.warn('Shuffle auto-play failed:', e));
     }
   }
   updateQueueUI();
@@ -1933,9 +1936,15 @@ async function requestBackgroundPiP() {
   try {
     if (document.pictureInPictureElement) await document.exitPictureInPicture();
     await audio.requestPictureInPicture();
-  } catch(e) { /* PiP not available */ }
+  } catch(e) { /* PiP not available on this platform — expected */ }
 }
-audio.addEventListener('error', () => { toast('⚠️ Lecture impossible'); setTimeout(nextTrack,400); });
+audio.addEventListener('error', () => {
+  const err = audio.error;
+  const msg = err ? `Code ${err.code}: ${err.message || 'unknown'}` : 'unknown error';
+  console.error('Audio playback error:', msg);
+  toast('⚠️ Lecture impossible');
+  setTimeout(nextTrack, 400);
+});
 audio.addEventListener('waiting', () => updatePlayIcons());
 
 let seekWasPlaying = false;
@@ -1949,7 +1958,7 @@ seekEl.addEventListener('input', e => {
   e.target.style.setProperty('--sp', e.target.value+'%');
 });
 seekEl.addEventListener('pointerup', () => {
-  if (seekWasPlaying) { isPlaying = true; audio.play().catch(()=>{}); }
+  if (seekWasPlaying) { isPlaying = true; audio.play().catch(e => { console.warn('Seek resume failed:', e); toast('⚠️ Reprise impossible'); }); }
 });
 $('fp-vol').addEventListener('input', e => {
   const v = parseFloat(e.target.value);
@@ -2119,7 +2128,7 @@ async function handleFiles(files) {
   const lrcMap = {};
   for (const lf of lrcFiles) {
     const baseName = lf.name.replace(/\.lrc$/i, '').toLowerCase();
-    const text = await lf.text().catch(() => '');
+    const text = await lf.text().catch(e => { console.warn('Failed to read LRC file:', lf.name, e); return ''; });
     if (text && text.includes('[ti:') || text.includes('[00:')) {
       lrcMap[baseName] = parseLRC(text);
     }
@@ -2143,7 +2152,7 @@ async function handleFiles(files) {
     toast('💡 Sélectionne aussi les images (cover.jpg, etc.) pour avoir les pochettes');
   }
   showProc(`Importation de ${valid.length} fichier${valid.length>1?'s':''}…`,'');
-  let done=0;
+  let done=0, failCount=0;
   for (const f of valid) {
     try {
       setProc(`${f.name}`, done/valid.length*100);
@@ -2154,13 +2163,17 @@ async function handleFiles(files) {
       const baseName = f.name.replace(/\.[^/.]+$/, '').toLowerCase();
       if (lrcMap[baseName] && meta) {
         lrcData[meta.id] = lrcMap[baseName];
-        try { await dbPut(STORE_META, { key:'lrc_'+meta.id, data:lrcMap[baseName] }); } catch(e) {}
+        try { await dbPut(STORE_META, { key:'lrc_'+meta.id, data:lrcMap[baseName] }); } catch(e) { console.warn('Failed to save LRC data for', meta.id, e); }
       }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+      console.error('Import failed for', f.name, e);
+      failCount++;
+    }
     done++;
   }
   hideProc();
-  toast(`✅ ${done} titre${done>1?'s':''} importé${done>1?'s':''}`);
+  if (failCount > 0) toast(`⚠️ ${done - failCount} importé(s), ${failCount} échoué(s)`);
+  else toast(`✅ ${done} titre${done>1?'s':''} importé${done>1?'s':''}`);
   await loadLibrary();
   renderAll();
 }
@@ -2168,7 +2181,9 @@ async function handleFiles(files) {
 async function importAudio(file, imgMap) {
   const tags = await readTags(file, file);
   const id = 'tr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-  const duration = await getAudioDuration(URL.createObjectURL(file));
+  const durationURL = URL.createObjectURL(file);
+  const duration = await getAudioDuration(durationURL);
+  URL.revokeObjectURL(durationURL);
   const audioBlob = file;
 
   // Art: try embedded tags first, then matching image file by track name only
@@ -2449,7 +2464,7 @@ function parseID3(buf) {
         if (img.length > 100) {
           res.artBlob = new Blob([img], {type: mime || 'image/jpeg'});
         }
-      } catch(e) {}
+      } catch(e) { console.warn('APIC tag parse error:', e); }
     }
     pos += fsz;
   }
@@ -2462,7 +2477,9 @@ const cleanName = n => n.replace(/\.[^/.]+$/,'').replace(/[-_]+/g,' ').replace(/
 
 // ─── LIBRARY LOAD ──────────────────────────────────────────
 async function loadLibrary() {
-  const all = await dbAll(STORE_TRACKS);
+  let all;
+  try { all = await dbAll(STORE_TRACKS); }
+  catch(e) { console.error('Failed to load library:', e); toast('⚠️ Erreur de chargement de la bibliothèque'); return; }
   library = all.map(({audioBlob,artBlob,...meta}) => meta); // strip blobs from memory
   // Revoke old URLs
   Object.values(blobURLs).forEach(u=>{
@@ -2477,24 +2494,27 @@ async function loadLibrary() {
       blobURLs[rec.id].artURL = URL.createObjectURL(rec.artBlob);
     }
   }
-  playlists = await dbAll(STORE_PL);
+  try { playlists = await dbAll(STORE_PL); }
+  catch(e) { console.warn('Failed to load playlists:', e); playlists = []; }
 
   // Load LRC data
   lrcData = {};
   for (const rec of all) {
-    const lrcRec = await dbGet(STORE_META, 'lrc_' + rec.id).catch(() => null);
+    const lrcRec = await dbGet(STORE_META, 'lrc_' + rec.id).catch(e => { console.warn('Failed to load LRC for', rec.id, e); return null; });
     if (lrcRec?.data) lrcData[rec.id] = lrcRec.data;
   }
 }
 
 async function getAudioURL(trackId) {
   if (blobURLs[trackId]?.audioURL) return blobURLs[trackId].audioURL;
-  const rec = await dbGet(STORE_TRACKS, trackId);
-  if (!rec?.audioBlob) return null;
-  const url = URL.createObjectURL(rec.audioBlob);
-  blobURLs[trackId] = blobURLs[trackId] || {};
-  blobURLs[trackId].audioURL = url;
-  return url;
+  try {
+    const rec = await dbGet(STORE_TRACKS, trackId);
+    if (!rec?.audioBlob) return null;
+    const url = URL.createObjectURL(rec.audioBlob);
+    blobURLs[trackId] = blobURLs[trackId] || {};
+    blobURLs[trackId].audioURL = url;
+    return url;
+  } catch(e) { console.warn('Failed to get audio URL for', trackId, e); return null; }
 }
 
 // ─── RENDER ENGINE ─────────────────────────────────────────
@@ -2888,9 +2908,15 @@ async function toggleFav(trackIdOrIdx) {
   else t = library.find(x=>x.id===trackIdOrIdx);
   if (!t) return;
   t.favorite = !t.favorite;
-  // Update in DB
-  const rec = await dbGet(STORE_TRACKS, t.id);
-  if (rec) { rec.favorite=t.favorite; await dbPut(STORE_TRACKS, rec); }
+  try {
+    const rec = await dbGet(STORE_TRACKS, t.id);
+    if (rec) { rec.favorite=t.favorite; await dbPut(STORE_TRACKS, rec); }
+  } catch(e) {
+    console.warn('Failed to persist favorite state:', e);
+    toast('⚠️ Erreur de sauvegarde');
+    t.favorite = !t.favorite;
+    return;
+  }
   updateFavBtn(t);
   renderFavorites(); renderHome();
   toast(t.favorite?'❤️ Ajouté aux favoris':'💔 Retiré des favoris');
@@ -3378,13 +3404,7 @@ function parseLRC(text) {
   return result;
 }
 
-// Auto-find and load .lrc file when a track is imported
-async function loadLRCForTrack(file, trackId) {
-  try {
-    const lrcName = file.name.replace(/\.[^/.]+$/, '') + '.lrc';
-    // Handled during bulk import in handleFiles
-  } catch(e) {}
-}
+// LRC loading is handled during bulk import in handleFiles
 
 // ─── MODAL ─────────────────────────────────────────────────
 function openModal(html) {
@@ -3409,12 +3429,12 @@ async function savePref() {
       key:'prefs',
       isShuffle,repeatMode,eqEnabled,eqVals,sortMode,playSpeed
     });
-  } catch(e){}
+  } catch(e) { console.warn('Failed to save preferences:', e); }
 }
 async function saveSession() {
   try {
     if(currentIdx>=0) await dbPut(STORE_META,{key:'session',trackId:library[currentIdx]?.id, queueIdx, queue});
-  } catch(e){}
+  } catch(e) { console.warn('Failed to save session:', e); }
 }
 async function loadPrefs() {
   const p=await dbGet(STORE_META,'prefs').catch(()=>null);
@@ -3525,19 +3545,25 @@ async function clearAllData() {
   `);
 }
 async function doClearAll() {
-  const stores = ['tracks', 'meta', 'playlists'];
-  for (const s of stores) {
-    const all = await dbAll(s);
-    for (const item of all) {
-      const key = item.key !== undefined ? item.key : item.id;
-      if (key !== undefined) await dbDel(s, key);
+  try {
+    const stores = ['tracks', 'meta', 'playlists'];
+    for (const s of stores) {
+      const all = await dbAll(s);
+      for (const item of all) {
+        const key = item.key !== undefined ? item.key : item.id;
+        if (key !== undefined) await dbDel(s, key);
+      }
     }
+    library = []; playlists = []; blobURLs = {};
+    if (audio) { audio.pause(); isPlaying = false; currentIdx = -1; }
+    closeModal();
+    renderAll();
+    toast('🗑️ Toutes les données effacées');
+  } catch(e) {
+    console.error('Failed to clear data:', e);
+    closeModal();
+    toast('⚠️ Erreur lors de la suppression');
   }
-  library = []; playlists = []; blobURLs = {};
-  if (audio) { audio.pause(); isPlaying = false; currentIdx = -1; }
-  closeModal();
-  renderAll();
-  toast('🗑️ Toutes les données effacées');
 }
 
 // ─── MOBILE MORE SHEET ──────────────────────────────────────
@@ -3561,7 +3587,7 @@ document.addEventListener('visibilitychange', () => {
     }
     // If music was playing and AudioContext was suspended, resume it
     else if (isPlaying && audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
+      audioCtx.resume().catch(e => console.warn('AudioCtx resume on foreground failed:', e));
     }
   }
 });
@@ -3603,7 +3629,12 @@ function unlockSilent() {
 async function init() {
   $('splash-msg').textContent = 'Ouverture de la base de données…';
   try { await openDB(); }
-  catch(e) { console.error('DB fail',e); }
+  catch(e) {
+    console.error('DB fail',e);
+    $('splash-msg').textContent = 'Erreur de base de données — rechargez la page';
+    toast('⚠️ Impossible d\'ouvrir la base de données');
+    return;
+  }
 
   $('splash-msg').textContent = 'Chargement de la bibliothèque…';
   await loadPrefs();
