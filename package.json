@@ -1,0 +1,22 @@
+{
+  "name": "apple-musique-",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --verbose",
+    "test:coverage": "jest --coverage --verbose"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "roots": ["<rootDir>/tests"],
+    "setupFiles": ["<rootDir>/tests/setup.js"]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Coco Music — Lecteur musical local",
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1"
+  }
+}

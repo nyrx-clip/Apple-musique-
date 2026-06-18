@@ -41,6 +41,7 @@
   --spring: cubic-bezier(0.34,1.56,0.64,1);
   --slide: cubic-bezier(0.32,0.72,0,1);
   --c1: #555; --c2: #222;
+  --ph1: #555; --ph2: #222;
 }
 /* ── LIQUID GLASS iOS 26 ── */
 .liquid-glass {
@@ -231,7 +232,7 @@ body {
 .home-hero:active { transform:scale(0.98); }
 .hero-bg {
   position:absolute; inset:-8px;
-  background:linear-gradient(135deg, var(--c1), var(--c2));
+  background:linear-gradient(135deg, var(--ph1), var(--ph2));
   transition:background 1.2s ease;
 }
 .hero-bg img { width:100%; height:100%; object-fit:cover; filter:blur(20px); transform:scale(1.15); opacity:0.55; transition:opacity 0.8s; }
@@ -283,7 +284,7 @@ body {
 .cthumb-ph {
   width:100%; height:100%;
   display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--c1) 0%,var(--c2) 100%);
+  background:linear-gradient(135deg,var(--ph1) 0%,var(--ph2) 100%);
 }
 .cthumb-ph svg { width:36%; height:36%; opacity:0.5; }
 .cplay {
@@ -768,7 +769,7 @@ body {
 .pd-art-ph {
   width:100%; height:100%;
   display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--c1),var(--c2));
+  background:linear-gradient(135deg,var(--ph1),var(--ph2));
 }
 .pd-art-ph svg { width:44%; height:44%; opacity:0.45; }
 .pd-info { flex:1; min-width:0; }
@@ -1537,10 +1538,11 @@ const dbAll = (store) => new Promise((res,rej)=>{ const r=db.transaction(store).
 
 // ─── STATE ─────────────────────────────────────────────────
 let library = [];      // track metadata (no blobs)
-let blobs = {};        // { id: { audioBlob, artBlob } }
+// blobs cache removed — audioBlob/artBlob are stored in IndexedDB and accessed via blobURLs
 let blobURLs = {};     // { id: { audioURL, artURL } }
 let playlists = [];
 let queue = [];        // track ids in play order
+let queueSource = null; // base id list for current context (null = full library)
 let queueIdx = 0;
 let currentIdx = -1;   // index in library[]
 let isPlaying = false;
@@ -1652,7 +1654,9 @@ function startVis() {
 
 // ─── PLAYBACK ──────────────────────────────────────────────
 function buildQueue(trackId) {
-  const ids = library.map(t=>t.id);
+  // Use the current context (playlist/album) if set, otherwise the full library
+  const base = (queueSource && queueSource.length) ? queueSource : library.map(t=>t.id);
+  const ids = base.filter(id=>library.find(t=>t.id===id));
   if (isShuffle) {
     const others = ids.filter(id=>id!==trackId);
     shuffle(others);
@@ -1714,7 +1718,7 @@ async function playById(trackId, resetQ=true) {
   }
   unlockSilent();
 
-  if (resetQ) buildQueue(trackId);
+  if (resetQ) { queueSource = null; buildQueue(trackId); }
   currentIdx = idx;
 
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
@@ -2043,7 +2047,7 @@ function updateTrackHighlights() {
     const t = id ? library.find(x=>x.id==id) : null;
     const isNow = t && t.id === (library[currentIdx]?.id);
     el.classList.toggle('now', !!isNow);
-    const numEl = el.querySelector('.tnum');
+    const numEl = el.querySelector('.tnum[data-num]');
     if (numEl) {
       if (isNow) numEl.innerHTML = `<div class="eqbars"><div class="eqb"></div><div class="eqb"></div><div class="eqb"></div></div>`;
       else numEl.textContent = numEl.dataset.num || '';
@@ -2120,7 +2124,7 @@ async function handleFiles(files) {
   for (const lf of lrcFiles) {
     const baseName = lf.name.replace(/\.lrc$/i, '').toLowerCase();
     const text = await lf.text().catch(() => '');
-    if (text && text.includes('[ti:') || text.includes('[00:')) {
+    if (text && (text.includes('[ti:') || text.includes('[00:'))) {
       lrcMap[baseName] = parseLRC(text);
     }
   }
@@ -2168,7 +2172,9 @@ async function handleFiles(files) {
 async function importAudio(file, imgMap) {
   const tags = await readTags(file, file);
   const id = 'tr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-  const duration = await getAudioDuration(URL.createObjectURL(file));
+  const durURL = URL.createObjectURL(file);
+  const duration = await getAudioDuration(durURL);
+  URL.revokeObjectURL(durURL);
   const audioBlob = file;
 
   // Art: try embedded tags first, then matching image file by track name only
@@ -2252,8 +2258,7 @@ function encodeWAV(buf) {
 
 // ─── TAG READER ────────────────────────────────────────────
 async function readTags(file, fullFile) {
-  return new Promise(async res => {
-    try {
+  try {
       // Read in chunks to find moov box anywhere in the file
       const CHUNK = 2 * 1024 * 1024; // 2MB per chunk
       const maxChunks = Math.min(Math.ceil(file.size / CHUNK), 20); // Max 40MB read total
@@ -2271,7 +2276,7 @@ async function readTags(file, fullFile) {
         if (totalTagSize + 10 > headSize && fullFile) {
           buf = await readSlice(file, 0, Math.min(totalTagSize + 10, file.size));
         }
-        return res(parseID3(buf));
+        return parseID3(buf);
       }
 
       // Strategy 2: If no ID3, search for moov box in chunks from both ends
@@ -2308,12 +2313,11 @@ async function readTags(file, fullFile) {
         }
       }
 
-      return res(result);
-    } catch(e) {
-      console.warn('readTags error:', e);
-      res({title:null,artist:null,album:null,artBlob:null});
-    }
-  });
+      return result;
+  } catch(e) {
+    console.warn('readTags error:', e);
+    return {title:null,artist:null,album:null,artBlob:null};
+  }
 }
 function parseMP4(bytes) {
   const res = {title:null,artist:null,album:null,artBlob:null};
@@ -2464,27 +2468,35 @@ const cleanName = n => n.replace(/\.[^/.]+$/,'').replace(/[-_]+/g,' ').replace(/
 async function loadLibrary() {
   const all = await dbAll(STORE_TRACKS);
   library = all.map(({audioBlob,artBlob,...meta}) => meta); // strip blobs from memory
-  // Revoke old URLs
-  Object.values(blobURLs).forEach(u=>{
-    if(u.audioURL) URL.revokeObjectURL(u.audioURL);
-    if(u.artURL) URL.revokeObjectURL(u.artURL);
-  });
-  blobURLs = {};
-  // Pre-create art URLs (small — just for display)
+  // Revoke URLs only for tracks that no longer exist (keep live URLs for displayed art)
+  const validIds = new Set(all.map(r=>r.id));
+  for (const id of Object.keys(blobURLs)) {
+    if (!validIds.has(id)) {
+      if(blobURLs[id].audioURL) URL.revokeObjectURL(blobURLs[id].audioURL);
+      if(blobURLs[id].artURL) URL.revokeObjectURL(blobURLs[id].artURL);
+      delete blobURLs[id];
+    }
+  }
+  // Create art URLs only for tracks that don't have one yet
   for (const rec of all) {
-    if (rec.artBlob) {
+    if (rec.artBlob && !blobURLs[rec.id]?.artURL) {
       blobURLs[rec.id] = blobURLs[rec.id] || {};
       blobURLs[rec.id].artURL = URL.createObjectURL(rec.artBlob);
     }
   }
   playlists = await dbAll(STORE_PL);
 
-  // Load LRC data
+  // Load LRC data — batch read instead of N sequential queries
   lrcData = {};
-  for (const rec of all) {
-    const lrcRec = await dbGet(STORE_META, 'lrc_' + rec.id).catch(() => null);
-    if (lrcRec?.data) lrcData[rec.id] = lrcRec.data;
-  }
+  try {
+    const allMeta = await dbAll(STORE_META);
+    for (const m of allMeta) {
+      if (m.key && m.key.startsWith('lrc_') && m.data) {
+        const trackId = m.key.slice(4);
+        lrcData[trackId] = m.data;
+      }
+    }
+  } catch(e) { console.warn('LRC load error:', e); }
 }
 
 async function getAudioURL(trackId) {
@@ -2806,6 +2818,7 @@ function playPlaylist(plId) {
   const ids=pl.trackIds.filter(id=>library.find(t=>t.id===id));
   if(!ids.length) return;
   isShuffle=false; $('fp-shuf-btn').classList.remove('lit'); $('fp-shuf-btn').classList.add('dim');
+  queueSource=[...ids];
   queue=[...ids]; queueIdx=0;
   currentIdx=library.findIndex(t=>t.id===ids[0]);
   playById(ids[0], false);
@@ -2816,6 +2829,7 @@ function shufflePlaylist(plId) {
   if(!pl?.trackIds.length) return;
   let ids=pl.trackIds.filter(id=>library.find(t=>t.id===id));
   if(!ids.length) return;
+  queueSource=[...ids];
   shuffle(ids);
   queue=[...ids]; queueIdx=0;
   currentIdx=library.findIndex(t=>t.id===ids[0]);
@@ -2827,6 +2841,7 @@ function shufflePlaylist(plId) {
 function playAlbumTracks(ids) {
   const validIds=ids.filter(id=>library.find(t=>t.id===id));
   if(!validIds.length) return;
+  queueSource=[...validIds];
   queue=[...validIds]; queueIdx=0;
   currentIdx=library.findIndex(t=>t.id===validIds[0]);
   playById(validIds[0], false);
@@ -2834,6 +2849,12 @@ function playAlbumTracks(ids) {
 
 /* HTML BUILDERS */
 function imgErr(el) {
+  if (el.id && el.id.endsWith('-art-img')) {
+    el.style.display='none';
+    const ph=document.getElementById(el.id.replace('-img','-ph'));
+    if(ph) ph.style.display='flex';
+    return;
+  }
   el.outerHTML='<div class="cthumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>';
 }
 function cardHTML(t) {
@@ -3115,6 +3136,7 @@ async function removeTrack(trackId) {
   if(blobURLs[trackId]?.artURL) URL.revokeObjectURL(blobURLs[trackId].artURL);
   delete blobURLs[trackId];
   const idx=library.findIndex(t=>t.id===trackId);
+  if(idx<0) return;
   library.splice(idx,1);
   if(currentIdx===idx){audio.pause();isPlaying=false;currentIdx=-1;}
   else if(currentIdx>idx) currentIdx--;
@@ -3189,12 +3211,16 @@ function renderSearchSuggestions() {
     </div>`;
 }
 
+let _searchTimer=null;
 $('search-inp').addEventListener('input', e=>{
-  const q=e.target.value.toLowerCase().trim();
-  const el=$('search-results');
-  if(!q){ renderSearchSuggestions(); return; }
-  const res=library.filter(t=>t.title.toLowerCase().includes(q)||t.artist.toLowerCase().includes(q)||t.album.toLowerCase().includes(q));
-  el.innerHTML=res.length?res.map((t,i)=>trackItemHTML(t,null,false)).join(''):`<div class="empty"><h3>Aucun résultat</h3><p>Essaie autre chose</p></div>`;
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(()=>{
+    const q=e.target.value.toLowerCase().trim();
+    const el=$('search-results');
+    if(!q){ renderSearchSuggestions(); return; }
+    const res=library.filter(t=>t.title.toLowerCase().includes(q)||t.artist.toLowerCase().includes(q)||t.album.toLowerCase().includes(q));
+    el.innerHTML=res.length?res.map((t,i)=>trackItemHTML(t,null,false)).join(''):`<div class="empty"><h3>Aucun résultat</h3><p>Essaie autre chose</p></div>`;
+  },180);
 });
 function quickSearch(q) {
   $('search-inp').value = q;
@@ -3275,7 +3301,11 @@ document.querySelectorAll('[data-nav]').forEach(el=>{
   el.addEventListener('click',()=>nav(el.dataset.nav));
 });
 
-$('lib-filter').addEventListener('input',()=>renderLibrary());
+let _libFilterTimer=null;
+$('lib-filter').addEventListener('input',()=>{
+  clearTimeout(_libFilterTimer);
+  _libFilterTimer=setTimeout(renderLibrary,180);
+});
 $('sort-btn').addEventListener('click',e=>{
   if (selectMode) { exitSelectMode(); return; }
   ctx(e,[
@@ -3293,7 +3323,10 @@ function openFullPlayer() {
   $('full-player').classList.add('open');
   updateQueueUI();
 }
-function closeFullPlayer() { const el=$('full-player');if(el){el.classList.remove('open');el.style.transform='';} }
+function closeFullPlayer() { const el=$('full-player');if(el){el.classList.remove('open');el.style.transform='';}
+  // Stop lyrics sync when player is closed to save CPU
+  if(lrcInterval){cancelAnimationFrame(lrcInterval);lrcInterval=null;}
+}
 
 // Swipe-down gesture
 let fpTy=0;
@@ -3316,7 +3349,7 @@ document.querySelectorAll('.fp-tab').forEach(tab=>{
     tab.classList.add('active');
     $('fp-queue').classList.toggle('open', tab.dataset.tab==='queue');
     $('fp-lyrics').classList.toggle('open', tab.dataset.tab==='lyrics');
-    if(tab.dataset.tab==='queue') updateQueueUI();
+    if(tab.dataset.tab==='queue'){ updateQueueUI(); if(lrcInterval){cancelAnimationFrame(lrcInterval);lrcInterval=null;} }
     if(tab.dataset.tab==='lyrics') renderLyrics();
   });
 });
@@ -3490,6 +3523,7 @@ function checkInstallPrompt() {
 
 
 // ─── SETTINGS ──────────────────────────────────────────────
+let _spatialListenerAdded = false;
 function renderSettings() {
   const totalSize = library.length;
   const totalDur = library.reduce((s, t) => s + (t.duration || 0), 0);
@@ -3502,10 +3536,13 @@ function renderSettings() {
     <div>🎤 ${new Set(library.map(t => t.artist)).size} artiste(s)</div>
     <div>📂 ${playlists.length} playlist(s)</div>
   `;
-  $('spatial-toggle').addEventListener('change', e => {
-    if (e.target.checked) enableSpatialAudio();
-    else disableSpatialAudio();
-  });
+  if (!_spatialListenerAdded) {
+    _spatialListenerAdded = true;
+    $('spatial-toggle').addEventListener('change', e => {
+      if (e.target.checked) enableSpatialAudio();
+      else disableSpatialAudio();
+    });
+  }
 }
 
 function enableSpatialAudio() {
