@@ -41,6 +41,7 @@
   --spring: cubic-bezier(0.34,1.56,0.64,1);
   --slide: cubic-bezier(0.32,0.72,0,1);
   --c1: #555; --c2: #222;
+  --ph1: #555; --ph2: #222;
 }
 /* ── LIQUID GLASS iOS 26 ── */
 .liquid-glass {
@@ -231,7 +232,7 @@ body {
 .home-hero:active { transform:scale(0.98); }
 .hero-bg {
   position:absolute; inset:-8px;
-  background:linear-gradient(135deg, var(--c1), var(--c2));
+  background:linear-gradient(135deg, var(--ph1), var(--ph2));
   transition:background 1.2s ease;
 }
 .hero-bg img { width:100%; height:100%; object-fit:cover; filter:blur(20px); transform:scale(1.15); opacity:0.55; transition:opacity 0.8s; }
@@ -283,7 +284,7 @@ body {
 .cthumb-ph {
   width:100%; height:100%;
   display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--c1) 0%,var(--c2) 100%);
+  background:linear-gradient(135deg,var(--ph1) 0%,var(--ph2) 100%);
 }
 .cthumb-ph svg { width:36%; height:36%; opacity:0.5; }
 .cplay {
@@ -768,7 +769,7 @@ body {
 .pd-art-ph {
   width:100%; height:100%;
   display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--c1),var(--c2));
+  background:linear-gradient(135deg,var(--ph1),var(--ph2));
 }
 .pd-art-ph svg { width:44%; height:44%; opacity:0.45; }
 .pd-info { flex:1; min-width:0; }
@@ -1541,6 +1542,7 @@ let library = [];      // track metadata (no blobs)
 let blobURLs = {};     // { id: { audioURL, artURL } }
 let playlists = [];
 let queue = [];        // track ids in play order
+let queueSource = null; // base id list for current context (null = full library)
 let queueIdx = 0;
 let currentIdx = -1;   // index in library[]
 let isPlaying = false;
@@ -1652,7 +1654,9 @@ function startVis() {
 
 // ─── PLAYBACK ──────────────────────────────────────────────
 function buildQueue(trackId) {
-  const ids = library.map(t=>t.id);
+  // Use the current context (playlist/album) if set, otherwise the full library
+  const base = (queueSource && queueSource.length) ? queueSource : library.map(t=>t.id);
+  const ids = base.filter(id=>library.find(t=>t.id===id));
   if (isShuffle) {
     const others = ids.filter(id=>id!==trackId);
     shuffle(others);
@@ -1714,7 +1718,7 @@ async function playById(trackId, resetQ=true) {
   }
   unlockSilent();
 
-  if (resetQ) buildQueue(trackId);
+  if (resetQ) { queueSource = null; buildQueue(trackId); }
   currentIdx = idx;
 
   if (xfadeTimeout) { clearTimeout(xfadeTimeout); xfadeTimeout=null; }
@@ -2043,7 +2047,7 @@ function updateTrackHighlights() {
     const t = id ? library.find(x=>x.id==id) : null;
     const isNow = t && t.id === (library[currentIdx]?.id);
     el.classList.toggle('now', !!isNow);
-    const numEl = el.querySelector('.tnum');
+    const numEl = el.querySelector('.tnum[data-num]');
     if (numEl) {
       if (isNow) numEl.innerHTML = `<div class="eqbars"><div class="eqb"></div><div class="eqb"></div><div class="eqb"></div></div>`;
       else numEl.textContent = numEl.dataset.num || '';
@@ -2464,15 +2468,18 @@ const cleanName = n => n.replace(/\.[^/.]+$/,'').replace(/[-_]+/g,' ').replace(/
 async function loadLibrary() {
   const all = await dbAll(STORE_TRACKS);
   library = all.map(({audioBlob,artBlob,...meta}) => meta); // strip blobs from memory
-  // Revoke old URLs
-  Object.values(blobURLs).forEach(u=>{
-    if(u.audioURL) URL.revokeObjectURL(u.audioURL);
-    if(u.artURL) URL.revokeObjectURL(u.artURL);
-  });
-  blobURLs = {};
-  // Pre-create art URLs (small — just for display)
+  // Revoke URLs only for tracks that no longer exist (keep live URLs for displayed art)
+  const validIds = new Set(all.map(r=>r.id));
+  for (const id of Object.keys(blobURLs)) {
+    if (!validIds.has(id)) {
+      if(blobURLs[id].audioURL) URL.revokeObjectURL(blobURLs[id].audioURL);
+      if(blobURLs[id].artURL) URL.revokeObjectURL(blobURLs[id].artURL);
+      delete blobURLs[id];
+    }
+  }
+  // Create art URLs only for tracks that don't have one yet
   for (const rec of all) {
-    if (rec.artBlob) {
+    if (rec.artBlob && !blobURLs[rec.id]?.artURL) {
       blobURLs[rec.id] = blobURLs[rec.id] || {};
       blobURLs[rec.id].artURL = URL.createObjectURL(rec.artBlob);
     }
@@ -2811,6 +2818,7 @@ function playPlaylist(plId) {
   const ids=pl.trackIds.filter(id=>library.find(t=>t.id===id));
   if(!ids.length) return;
   isShuffle=false; $('fp-shuf-btn').classList.remove('lit'); $('fp-shuf-btn').classList.add('dim');
+  queueSource=[...ids];
   queue=[...ids]; queueIdx=0;
   currentIdx=library.findIndex(t=>t.id===ids[0]);
   playById(ids[0], false);
@@ -2821,6 +2829,7 @@ function shufflePlaylist(plId) {
   if(!pl?.trackIds.length) return;
   let ids=pl.trackIds.filter(id=>library.find(t=>t.id===id));
   if(!ids.length) return;
+  queueSource=[...ids];
   shuffle(ids);
   queue=[...ids]; queueIdx=0;
   currentIdx=library.findIndex(t=>t.id===ids[0]);
@@ -2832,6 +2841,7 @@ function shufflePlaylist(plId) {
 function playAlbumTracks(ids) {
   const validIds=ids.filter(id=>library.find(t=>t.id===id));
   if(!validIds.length) return;
+  queueSource=[...validIds];
   queue=[...validIds]; queueIdx=0;
   currentIdx=library.findIndex(t=>t.id===validIds[0]);
   playById(validIds[0], false);
@@ -2839,6 +2849,12 @@ function playAlbumTracks(ids) {
 
 /* HTML BUILDERS */
 function imgErr(el) {
+  if (el.id && el.id.endsWith('-art-img')) {
+    el.style.display='none';
+    const ph=document.getElementById(el.id.replace('-img','-ph'));
+    if(ph) ph.style.display='flex';
+    return;
+  }
   el.outerHTML='<div class="cthumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>';
 }
 function cardHTML(t) {
